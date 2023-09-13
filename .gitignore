@@ -152,4 +152,4 @@ cython_debug/
 #.idea/
 
 # .idea
-/idea/
+/.idea/
