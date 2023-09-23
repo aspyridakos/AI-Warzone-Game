@@ -328,6 +328,16 @@ class Game:
         unit = self.get(coords.dst)
         return (unit is None)
 
+    def engaged_in_combat(self, coord: Coord) -> bool:
+        """Check if unit is engaged in combat."""
+        ajd = Coord.iter_adjacent(coord)
+        for adjacent_coord in ajd:
+            enemy = self.get(adjacent_coord)
+            # return True if enemy player in one of adjacent coordinates
+            if enemy is not None and enemy.player != self.get(coord).player:
+                return True
+        return False
+
     def perform_move(self, coords: CoordPair) -> Tuple[bool, str]:
         """Validate and perform a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
         if self.is_valid_move(coords):
