@@ -146,10 +146,10 @@ class Coord:
 
     def iter_adjacent(self) -> Iterable[Coord]:
         """Iterates over adjacent Coords."""
-        yield Coord(self.row - 1, self.col)
-        yield Coord(self.row, self.col - 1)
-        yield Coord(self.row + 1, self.col)
-        yield Coord(self.row, self.col + 1)
+        yield Coord(self.row - 1, self.col)  # returns top-adjacent coord
+        yield Coord(self.row, self.col - 1)  # returns left-adjacent coord
+        yield Coord(self.row + 1, self.col)  # returns bottom-adjacent coord
+        yield Coord(self.row, self.col + 1)  # returns right-adjacent coord
 
     @classmethod
     def from_string(cls, s: str) -> Coord | None:
@@ -320,13 +320,59 @@ class Game:
 
     def is_valid_move(self, coords: CoordPair) -> bool:
         """Validate a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
+        # Check that you are not moving to the same spot you're already in
         if not self.is_valid_coord(coords.src) or not self.is_valid_coord(coords.dst):
             return False
         unit = self.get(coords.src)
+        # Check that you are actually selecting your piece
         if unit is None or unit.player != self.next_player:
             return False
         unit = self.get(coords.dst)
-        return (unit is None)
+        # Check if destination coord is empty
+        if unit is None:
+            # get unit type
+            unit_type = self.get(coords.src).type.value
+
+            # get player type
+            player_type = self.get(coords.src).player.value
+
+            # show available moves
+            available_moves = []
+
+            for x in coords.src.iter_adjacent():
+                available_moves.append(x.to_string())
+
+            print('available moves')
+            print(coords.dst)
+            print(available_moves)
+
+            # remove later
+            engaged_in_combat = False
+
+            if unit_type in [1, 3]:
+                if str(coords.dst) in available_moves:
+                    return True
+                else:
+                    return False
+            else:
+                # Check if engaged in combat and AI, Program or Firewall
+                # Cannot move in this case
+                if engaged_in_combat:
+                    return False
+
+                # Player is an attacker
+                if player_type is Player.Attacker.value:
+                    # Check if unit is an AI, Program or Firewall
+                    # Can only move up or left
+
+                    if str(coords.dst) in available_moves[:2]:
+                        return True
+                # Player is a defender
+                else:
+                    # Check if unit is an AI, Program or Firewall
+                    # Can only move down or right
+                    if str(coords.dst) in available_moves[2:]:
+                        return True
 
     def perform_move(self, coords: CoordPair) -> Tuple[bool, str]:
         """Validate and perform a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
