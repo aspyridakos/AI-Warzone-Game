@@ -319,66 +319,76 @@ class Game:
             self.remove_dead(coord)
 
     def is_valid_move(self, coords: CoordPair) -> bool:
-        """Validate a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
-        # Check that you are not moving to the same spot you're already in
+        """Validate a move expressed as a CoordPair."""
+        # Checks if source and target coordinates are within board limits
         if not self.is_valid_coord(coords.src) or not self.is_valid_coord(coords.dst):
             return False
         unit = self.get(coords.src)
-        # Check that you are actually selecting your piece
+        # Checks if trying to move from an empty coord OR if trying to move opponents piece
         if unit is None or unit.player != self.next_player:
             return False
         unit = self.get(coords.dst)
-        # Check if destination coord is empty
-        if unit is None:
-            # get unit type
-            unit_type = self.get(coords.src).type.value
+        is_adjacent_coord = coords.dst in coords.src.iter_adjacent()
 
-            # get player type
-            player_type = self.get(coords.src).player.value
+        # Checks if moving piece (destination coord is empty)
+        if is_adjacent_coord:
+            if unit is None:
+                # get unit type
+                unit_type = self.get(coords.src).type.value
 
-            # show available moves
-            available_moves = []
-
-            for x in coords.src.iter_adjacent():
-                available_moves.append(x.to_string())
-
-            print('available moves')
-            print(coords.dst)
-            print(available_moves)
-
-            # remove later
-            engaged_in_combat = False
-
-            if unit_type in [1, 3]:
-                if str(coords.dst) in available_moves:
+                # Check if Virus or Tech
+                # Can move freely in attack or defense, and in combat
+                if unit_type in [1, 2]:
                     return True
-                else:
-                    return False
-            else:
+
+                engaged_in_combat = False  # FIXME: remove later
+
                 # Check if engaged in combat and AI, Program or Firewall
                 # Cannot move in this case
                 if engaged_in_combat:
                     return False
 
+                # get player type
+                player_type = self.get(coords.src).player.value
+
+                # List out adjacent coordinates
+                top_adjacent_coord = Coord(coords.src.row - 1, coords.src.col).to_string()
+                left_adjacent_coord = Coord(coords.src.row, coords.src.col - 1).to_string()
+                bottom_adjacent_coord = Coord(coords.src.row + 1, coords.src.col).to_string()
+                right_adjacent_coord = Coord(coords.src.row, coords.src.col + 1).to_string()
+
                 # Player is an attacker
                 if player_type is Player.Attacker.value:
                     # Check if unit is an AI, Program or Firewall
                     # Can only move up or left
-
-                    if str(coords.dst) in available_moves[:2]:
+                    if coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]:
                         return True
+
                 # Player is a defender
                 else:
                     # Check if unit is an AI, Program or Firewall
                     # Can only move down or right
-                    if str(coords.dst) in available_moves[2:]:
+                    if coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]:
                         return True
+
+            # Checks if attacking or repairing piece
+            else:
+                health_delta = self.get(coords.src).repair_amount(unit)
+                # Checks if adjacent unit can be healed when repairing
+                if unit.player is self.get(coords.src).player and (health_delta == 0):
+                    return False
+                return True
+
+        # Checks if trying to move to non-adjacent space
+        else:
+            return False
 
     def perform_move(self, coords: CoordPair) -> Tuple[bool, str]:
         """Validate and perform a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
         if self.is_valid_move(coords):
             self.set(coords.dst, self.get(coords.src))
             self.set(coords.src, None)
+
             return (True, "")
         return (False, "invalid move")
 
