@@ -345,7 +345,7 @@ class Game:
                 # Check if engaged in combat and AI, Program or Firewall
                 # Cannot move in this case
                 if self.engaged_in_combat(coords.src):
-                    print("invalid move for AI, Program and Firewall units engaged in combat")
+                    print("invalid move for AI, Program or Firewall units engaged in combat")
                     return False
 
                 # get player type
@@ -360,15 +360,16 @@ class Game:
                 # Player is an attacker and unit is an AI, Program or Firewall
                 # Can only move up or left
                 if player_type is Player.Attacker.value and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]:
-                    print("valid move for AI, Program and Firewall defender units (up or left)")
+                    print("valid move for AI, Program or Firewall defender units (up or left)")
                     return True
 
                 # Player is a defender and unit is an AI, Program or Firewall
                 # Can only move down or right
                 elif player_type is Player.Defender.value and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]:
-                    print("valid move for AI, Program and Firewall defender units (down or right)")
+                    print("valid move for AI, Program or Firewall defender units (down or right)")
                     return True
                 else:
+                    print("invalid more for AI, Program or Firewall while not engaged in combat")
                     return False
 
             # Checks if attacking or repairing piece
@@ -381,7 +382,12 @@ class Game:
                 print("valid repair")
                 return True
 
-        # Checks if trying to move to non-adjacent space
+        # Checks if src and dst coords are the same (initiating self-destruct)
+        elif coords.src == coords.dst:
+            print("valid self-destruction")
+            return True
+
+        # Checks if trying to move to non-adjacent space and not self-destructing
         else:
             print("invalid move, non-adjacent space selected")
             return False
