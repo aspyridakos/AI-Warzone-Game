@@ -157,7 +157,7 @@ class Coord:
         s = s.strip()
         for sep in " ,.:;-_":
             s = s.replace(sep, "")
-        if (len(s) == 2):
+        if len(s) == 2:
             coord = Coord()
             coord.row = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".find(s[0:1].upper())
             coord.col = "0123456789abcdef".find(s[1:2].lower())
@@ -208,7 +208,7 @@ class CoordPair:
         s = s.strip()
         for sep in " ,.:;-_":
             s = s.replace(sep, "")
-        if (len(s) == 4):
+        if len(s) == 4:
             coords = CoordPair()
             coords.src.row = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".find(s[0:1].upper())
             coords.src.col = "0123456789abcdef".find(s[1:2].lower())
@@ -407,8 +407,8 @@ class Game:
         if self.is_valid_move(coords):
             self.set(coords.dst, self.get(coords.src))
             self.set(coords.src, None)
-            return (True, "")
-        return (False, "invalid move")
+            return True, ""
+        return False, "invalid move"
 
     def next_turn(self):
         """Transitions game to the next turn."""
@@ -505,7 +505,7 @@ class Game:
         for coord in CoordPair.from_dim(self.options.dim).iter_rectangle():
             unit = self.get(coord)
             if unit is not None and unit.player == player:
-                yield (coord, unit)
+                yield coord, unit
 
     def is_finished(self) -> bool:
         """Check if the game is over."""
@@ -540,9 +540,9 @@ class Game:
         move_candidates = list(self.move_candidates())
         random.shuffle(move_candidates)
         if len(move_candidates) > 0:
-            return (0, move_candidates[0], 1)
+            return 0, move_candidates[0], 1
         else:
-            return (0, None, 0)
+            return 0, None, 0
 
     def suggest_move(self) -> CoordPair | None:
         """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
