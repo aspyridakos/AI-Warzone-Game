@@ -249,6 +249,9 @@ class Stats:
 @dataclass(slots=True)
 class Game:
     """Representation of the game state."""
+    # List creation to store the moves being made by each human
+    moves_made : list[CoordPair]= field(default_factory=list)
+
     board: list[list[Unit | None]] = field(default_factory=list)
     next_player: Player = Player.Attacker
     turns_played: int = 0
@@ -333,8 +336,20 @@ class Game:
         if self.is_valid_move(coords):
             self.set(coords.dst, self.get(coords.src))
             self.set(coords.src, None)
+            self.moves_made.append(coords.clone()) #Records the moves in the list created
             return (True, "")
         return (False, "invalid move")
+
+
+
+    #moves_to_file function opens the file and write ot it for whatever moves were made by each player.
+    def moves_to_file(self, file_name: str):
+        with open(file_name, 'w') as f:
+            for i, move in enumerate(self.moves_made, start=1):
+                f.write("Move %d: %s -> %s\n" % (i, move.src.to_string(), move.dst.to_string()))
+
+
+
 
     def next_turn(self):
         """Transitions game to the next turn."""
@@ -597,6 +612,10 @@ def main():
             else:
                 print("Computer doesn't know what to do!!!")
                 exit(1)
+
+    # Saves to a file named movesmade.txt
+    if winner is not None:
+        game.save_moves_to_file("MovesMade.txt")
 
 
 ##############################################################################################################
