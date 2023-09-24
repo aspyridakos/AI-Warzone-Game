@@ -157,7 +157,7 @@ class Coord:
         s = s.strip()
         for sep in " ,.:;-_":
             s = s.replace(sep, "")
-        if (len(s) == 2):
+        if len(s) == 2:
             coord = Coord()
             coord.row = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".find(s[0:1].upper())
             coord.col = "0123456789abcdef".find(s[1:2].lower())
@@ -208,7 +208,7 @@ class CoordPair:
         s = s.strip()
         for sep in " ,.:;-_":
             s = s.replace(sep, "")
-        if (len(s) == 4):
+        if len(s) == 4:
             coords = CoordPair()
             coords.src.row = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".find(s[0:1].upper())
             coords.src.col = "0123456789abcdef".find(s[1:2].lower())
@@ -339,13 +339,13 @@ class Game:
                 # Check if Virus or Tech
                 # Can move freely in attack or defense, and in combat
                 if unit_type in [1, 2]:
+                    print("valid move for Virus and Tech units")
                     return True
-
-                engaged_in_combat = False  # FIXME: remove later
 
                 # Check if engaged in combat and AI, Program or Firewall
                 # Cannot move in this case
-                if engaged_in_combat:
+                if self.engaged_in_combat(coords.src):
+                    print("invalid move for AI, Program or Firewall units engaged in combat")
                     return False
 
                 # get player type
@@ -360,13 +360,16 @@ class Game:
                 # Player is an attacker and unit is an AI, Program or Firewall
                 # Can only move up or left
                 if player_type is Player.Attacker.value and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]:
+                    print("valid move for AI, Program or Firewall defender units (up or left)")
                     return True
 
                 # Player is a defender and unit is an AI, Program or Firewall
                 # Can only move down or right
                 elif player_type is Player.Defender.value and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]:
+                    print("valid move for AI, Program or Firewall defender units (down or right)")
                     return True
                 else:
+                    print("invalid more for AI, Program or Firewall while not engaged in combat")
                     return False
 
             # Checks if attacking or repairing piece
@@ -374,21 +377,38 @@ class Game:
                 health_delta = self.get(coords.src).repair_amount(unit)
                 # Checks if adjacent unit can be healed when repairing
                 if unit.player is self.get(coords.src).player and (health_delta == 0):
+                    print("invalid repair, health is at max")
                     return False
+                print("valid repair")
                 return True
 
-        # Checks if trying to move to non-adjacent space
+        # Checks if src and dst coords are the same (initiating self-destruct)
+        elif coords.src == coords.dst:
+            print("valid self-destruction")
+            return True
+
+        # Checks if trying to move to non-adjacent space and not self-destructing
         else:
+            print("invalid move, non-adjacent space selected")
             return False
+
+    def engaged_in_combat(self, coord: Coord) -> bool:
+        """Check if unit is engaged in combat."""
+        ajd = Coord.iter_adjacent(coord)
+        for adjacent_coord in ajd:
+            enemy = self.get(adjacent_coord)
+            # return True if enemy player in one of adjacent coordinates
+            if enemy is not None and enemy.player != self.get(coord).player:
+                return True
+        return False
 
     def perform_move(self, coords: CoordPair) -> Tuple[bool, str]:
         """Validate and perform a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
         if self.is_valid_move(coords):
             self.set(coords.dst, self.get(coords.src))
             self.set(coords.src, None)
-
-            return (True, "")
-        return (False, "invalid move")
+            return True, ""
+        return False, "invalid move"
 
     def next_turn(self):
         """Transitions game to the next turn."""
@@ -485,7 +505,7 @@ class Game:
         for coord in CoordPair.from_dim(self.options.dim).iter_rectangle():
             unit = self.get(coord)
             if unit is not None and unit.player == player:
-                yield (coord, unit)
+                yield coord, unit
 
     def is_finished(self) -> bool:
         """Check if the game is over."""
@@ -520,9 +540,9 @@ class Game:
         move_candidates = list(self.move_candidates())
         random.shuffle(move_candidates)
         if len(move_candidates) > 0:
-            return (0, move_candidates[0], 1)
+            return 0, move_candidates[0], 1
         else:
-            return (0, None, 0)
+            return 0, None, 0
 
     def suggest_move(self) -> CoordPair | None:
         """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
