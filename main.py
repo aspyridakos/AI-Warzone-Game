@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass, field
 from time import sleep
-from typing import Tuple, TypeVar, Type, Iterable, ClassVar
+from typing import Tuple, Iterable, ClassVar
 import random
 import requests
 
@@ -250,7 +250,7 @@ class Stats:
 class Game:
     """Representation of the game state."""
     # List creation to store the moves being made by each human
-    moves_made : list[CoordPair]= field(default_factory=list)
+    moves_made: list[CoordPair] = field(default_factory=list)
 
     board: list[list[Unit | None]] = field(default_factory=list)
     next_player: Player = Player.Attacker
@@ -362,13 +362,15 @@ class Game:
 
                 # Player is an attacker and unit is an AI, Program or Firewall
                 # Can only move up or left
-                if player_type is Player.Attacker.value and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]:
+                if (player_type is Player.Attacker.value
+                        and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]):
                     print("valid move for AI, Program or Firewall defender units (up or left)")
                     return True
 
                 # Player is a defender and unit is an AI, Program or Firewall
                 # Can only move down or right
-                elif player_type is Player.Defender.value and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]:
+                elif (player_type is Player.Defender.value
+                      and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]):
                     print("valid move for AI, Program or Firewall defender units (down or right)")
                     return True
                 else:
@@ -410,12 +412,12 @@ class Game:
         if self.is_valid_move(coords):
             self.set(coords.dst, self.get(coords.src))
             self.set(coords.src, None)
-            self.moves_made.append(coords.clone()) # Records the moves in the list created
+            self.moves_made.append(coords.clone())   # Records the moves in the list created
             return True, ""
         return False, "invalid move"
 
-    #moves_to_file function opens the file and write ot it for whatever moves were made by each player.
     def moves_to_file(self, file_name: str):
+        """Opens the file and write ot it for whatever moves were made by each player"""
         with open(file_name, 'w') as f:
             for i, move in enumerate(self.moves_made, start=1):
                 f.write("Move %d: %s -> %s\n" % (i, move.src.to_string(), move.dst.to_string()))
@@ -684,7 +686,7 @@ def main():
 
     # Saves to a file named movesmade.txt
     if winner is not None:
-        game.save_moves_to_file("MovesMade.txt")
+        game.moves_to_file("MovesMade.txt")
 
 
 ##############################################################################################################
