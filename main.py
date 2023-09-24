@@ -357,19 +357,17 @@ class Game:
                 bottom_adjacent_coord = Coord(coords.src.row + 1, coords.src.col).to_string()
                 right_adjacent_coord = Coord(coords.src.row, coords.src.col + 1).to_string()
 
-                # Player is an attacker
-                if player_type is Player.Attacker.value:
-                    # Check if unit is an AI, Program or Firewall
-                    # Can only move up or left
-                    if coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]:
-                        return True
+                # Player is an attacker and unit is an AI, Program or Firewall
+                # Can only move up or left
+                if player_type is Player.Attacker.value and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]:
+                    return True
 
-                # Player is a defender
+                # Player is a defender and unit is an AI, Program or Firewall
+                # Can only move down or right
+                elif player_type is Player.Defender.value and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]:
+                    return True
                 else:
-                    # Check if unit is an AI, Program or Firewall
-                    # Can only move down or right
-                    if coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]:
-                        return True
+                    return False
 
             # Checks if attacking or repairing piece
             else:
