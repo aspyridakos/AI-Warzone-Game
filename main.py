@@ -319,8 +319,8 @@ class Game:
             self.remove_dead(coord)
 
     def is_valid_move(self, coords: CoordPair) -> bool:
-        """Validate a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
-        # Check if source and target coordinates are within board limits
+        """Validate a move expressed as a CoordPair."""
+        # Checks if source and target coordinates are within board limits
         if not self.is_valid_coord(coords.src) or not self.is_valid_coord(coords.dst):
             return False
         unit = self.get(coords.src)
@@ -328,52 +328,63 @@ class Game:
         if unit is None or unit.player != self.next_player:
             return False
         unit = self.get(coords.dst)
-        # Check if destination coord is empty
-        if unit is None:
-            # get unit type
-            unit_type = self.get(coords.src).type.value
+        is_adjacent_coord = coords.dst in coords.src.iter_adjacent()
 
-            # get player type
-            player_type = self.get(coords.src).player.value
+        # Checks if moving piece (destination coord is empty)
+        if is_adjacent_coord:
+            if unit is None:
+                # get unit type
+                unit_type = self.get(coords.src).type.value
 
-            # show available moves
-            available_moves = []
-
-            for x in coords.src.iter_adjacent():
-                available_moves.append(x.to_string())
-
-            print('available moves')
-            print(coords.dst)
-            print(available_moves)
-
-            if unit_type in [1, 2]:
-                if str(coords.dst) in available_moves:
+                # Check if Virus or Tech
+                # Can move freely in attack or defense, and in combat
+                if unit_type in [1, 2]:
                     print("valid move for Virus and Tech units")
                     return True
-                else:
-                    print("invalid move for Virus and Tech units")
-                    return False
-            else:
+
                 # Check if engaged in combat and AI, Program or Firewall
                 # Cannot move in this case
                 if self.engaged_in_combat(coords.src):
                     print("invalid move for AI, Program and Firewall units engaged in combat")
                     return False
-                # Player is an attacker
-                if player_type is Player.Attacker.value:
-                    # Check if unit is an AI, Program or Firewall
-                    # Can only move up or left
-                    if str(coords.dst) in available_moves[:2]:
-                        print("valid move for AI, Program and Firewall attacker units (up or left)")
-                        return True
-                # Player is a defender
+
+                # get player type
+                player_type = self.get(coords.src).player.value
+
+                # List out adjacent coordinates
+                top_adjacent_coord = Coord(coords.src.row - 1, coords.src.col).to_string()
+                left_adjacent_coord = Coord(coords.src.row, coords.src.col - 1).to_string()
+                bottom_adjacent_coord = Coord(coords.src.row + 1, coords.src.col).to_string()
+                right_adjacent_coord = Coord(coords.src.row, coords.src.col + 1).to_string()
+
+                # Player is an attacker and unit is an AI, Program or Firewall
+                # Can only move up or left
+                if player_type is Player.Attacker.value and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]:
+                    print("valid move for AI, Program and Firewall defender units (up or left)")
+                    return True
+
+                # Player is a defender and unit is an AI, Program or Firewall
+                # Can only move down or right
+                elif player_type is Player.Defender.value and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]:
+                    print("valid move for AI, Program and Firewall defender units (down or right)")
+                    return True
                 else:
-                    # Check if unit is an AI, Program or Firewall
-                    # Can only move down or right
-                    if str(coords.dst) in available_moves[2:]:
-                        print("valid move for AI, Program and Firewall defender units (down or right)")
-                        return True
-        return False
+                    return False
+
+            # Checks if attacking or repairing piece
+            else:
+                health_delta = self.get(coords.src).repair_amount(unit)
+                # Checks if adjacent unit can be healed when repairing
+                if unit.player is self.get(coords.src).player and (health_delta == 0):
+                    print("invalid repair, health is at max")
+                    return False
+                print("valid repair")
+                return True
+
+        # Checks if trying to move to non-adjacent space
+        else:
+            print("invalid move, non-adjacent space selected")
+            return False
 
     def engaged_in_combat(self, coord: Coord) -> bool:
         """Check if unit is engaged in combat."""
