@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass, field
 from time import sleep
-from typing import Tuple, TypeVar, Type, Iterable, ClassVar
+from typing import Tuple, Iterable, ClassVar
 import random
 import requests
 
@@ -249,6 +249,9 @@ class Stats:
 @dataclass(slots=True)
 class Game:
     """Representation of the game state."""
+    # List creation to store the moves being made by each human
+    moves_made: list[CoordPair] = field(default_factory=list)
+
     board: list[list[Unit | None]] = field(default_factory=list)
     next_player: Player = Player.Attacker
     turns_played: int = 0
@@ -361,16 +364,16 @@ class Game:
 
                 # Player is an attacker and unit is an AI, Program or Firewall
                 # Can only move up or left
-                if player_type is Player.Attacker.value and coords.dst.to_string() in [top_adjacent_coord,
-                                                                                       left_adjacent_coord]:
+                if (player_type is Player.Attacker.value
+                        and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]):
                     print("valid move for AI, Program or Firewall defender units (up or left)")
                     self.move_id = 0
                     return True
 
                 # Player is a defender and unit is an AI, Program or Firewall
                 # Can only move down or right
-                elif player_type is Player.Defender.value and coords.dst.to_string() in [bottom_adjacent_coord,
-                                                                                         right_adjacent_coord]:
+                elif (player_type is Player.Defender.value
+                      and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]):
                     print("valid move for AI, Program or Firewall defender units (down or right)")
                     self.move_id = 0
                     return True
@@ -463,6 +466,12 @@ class Game:
                         self.remove_dead(coord)
                     return True, "self-destructed for {td} total damage".format(td=total_damage)
         return False, "invalid move"
+
+    def moves_to_file(self, file_name: str):
+        """Opens the file and write ot it for whatever moves were made by each player"""
+        with open(file_name, 'w') as f:
+            for i, move in enumerate(self.moves_made, start=1):
+                f.write("Move %d: %s -> %s\n" % (i, move.src.to_string(), move.dst.to_string()))
 
     def next_turn(self):
         """Transitions game to the next turn."""
@@ -725,6 +734,10 @@ def main():
             else:
                 print("Computer doesn't know what to do!!!")
                 exit(1)
+
+    # Saves to a file named movesmade.txt
+    if winner is not None:
+        game.moves_to_file("MovesMade.txt")
 
 
 ##############################################################################################################
