@@ -341,6 +341,7 @@ class Game:
                 # Can move freely in attack or defense, and in combat
                 if unit_type in [1, 2]:
                     print("valid move for Virus and Tech units")
+                    self.move_id = 0
                     return True
 
                 # Check if engaged in combat and AI, Program or Firewall
@@ -363,6 +364,7 @@ class Game:
                 if player_type is Player.Attacker.value and coords.dst.to_string() in [top_adjacent_coord,
                                                                                        left_adjacent_coord]:
                     print("valid move for AI, Program or Firewall defender units (up or left)")
+                    self.move_id = 0
                     return True
 
                 # Player is a defender and unit is an AI, Program or Firewall
@@ -370,6 +372,7 @@ class Game:
                 elif player_type is Player.Defender.value and coords.dst.to_string() in [bottom_adjacent_coord,
                                                                                          right_adjacent_coord]:
                     print("valid move for AI, Program or Firewall defender units (down or right)")
+                    self.move_id = 0
                     return True
                 else:
                     print("invalid more for AI, Program or Firewall while not engaged in combat")
@@ -385,14 +388,17 @@ class Game:
                         print("invalid repair")
                         return False
                     else:
+                        self.move_id = 1
                         print("valid repair")
                         return True
                 # If opposing units (attempting attack)
                 else:
+                    self.move_id = 2
                     print("valid attack")
                     return True
         # Checks if src and dst coords are the same (initiating self-destruct)
         elif coords.src == coords.dst:
+            self.move_id = 3
             print("valid self-destruction")
             return True
         # Checks if trying to move to non-adjacent space and not self-destructing
@@ -411,11 +417,51 @@ class Game:
         return False
 
     def perform_move(self, coords: CoordPair) -> Tuple[bool, str]:
-        """Validate and perform a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
+        """Validate and perform a move expressed as a CoordPair."""
         if self.is_valid_move(coords):
-            self.set(coords.dst, self.get(coords.src))
-            self.set(coords.src, None)
-            return True, ""
+            match self.move_id:
+                # Movement
+                case 0:
+                    self.set(coords.dst, self.get(coords.src))
+                    self.set(coords.src, None)
+                    return True, ""
+                # Repair
+                case 1:
+                    health_delta = self.get(coords.src).repair_amount(self.get(coords.dst))
+                    health_before = self.get(coords.dst).health
+                    # modify health of unit at destination
+                    self.mod_health(coords.dst, health_delta)
+                    return True, "repair outcome: health before = {hb} and health after = {ha}" \
+                        .format(hb=health_before, ha=self.get(coords.dst).health)
+                # Attack
+                case 2:
+                    damage_to_opponent = self.get(coords.src).damage_amount(self.get(coords.dst))
+                    damage_from_opponent = self.get(coords.dst).damage_amount(self.get(coords.src))
+                    # modify health of source unit
+                    self.mod_health(coords.src, -damage_from_opponent)
+                    # modify health of destination unit
+                    self.mod_health(coords.dst, -damage_to_opponent)
+                    # check if either unit is dead and remove if it is
+                    self.remove_dead(coords.src)
+                    self.remove_dead(coords.dst)
+                    return True, "combat damage: to source = {df}, to target {dt}".format(df=damage_from_opponent,
+                                                                                          dt=damage_to_opponent)
+                # Self-destruct
+                case 3:
+                    total_damage = 0
+                    surrounding_units = coords.src.iter_range(1)
+                    for coord in surrounding_units:
+                        # unit to self-destruct
+                        if str(coord) == str(coords.src):
+                            unit_health = self.get(coord).health
+                            self.mod_health(coord, -unit_health)
+                        # surrounding units to damage
+                        elif self.is_valid_coord(coord) and self.get(coord) is not None:
+                            self.mod_health(coord, -2)
+                            total_damage += 2
+                        # check if unit is dead and remove if it is
+                        self.remove_dead(coord)
+                    return True, "self-destructed for {td} total damage".format(td=total_damage)
         return False, "invalid move"
 
     def next_turn(self):
