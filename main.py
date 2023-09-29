@@ -256,6 +256,7 @@ class Game:
     stats: Stats = field(default_factory=Stats)
     _attacker_has_ai: bool = True
     _defender_has_ai: bool = True
+    move_id: int = 0
 
     def __post_init__(self):
         """Automatically called after class init to set up the default board state."""
@@ -359,13 +360,15 @@ class Game:
 
                 # Player is an attacker and unit is an AI, Program or Firewall
                 # Can only move up or left
-                if player_type is Player.Attacker.value and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]:
+                if player_type is Player.Attacker.value and coords.dst.to_string() in [top_adjacent_coord,
+                                                                                       left_adjacent_coord]:
                     print("valid move for AI, Program or Firewall defender units (up or left)")
                     return True
 
                 # Player is a defender and unit is an AI, Program or Firewall
                 # Can only move down or right
-                elif player_type is Player.Defender.value and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]:
+                elif player_type is Player.Defender.value and coords.dst.to_string() in [bottom_adjacent_coord,
+                                                                                         right_adjacent_coord]:
                     print("valid move for AI, Program or Firewall defender units (down or right)")
                     return True
                 else:
@@ -374,19 +377,24 @@ class Game:
 
             # Checks if attacking or repairing piece
             else:
-                health_delta = self.get(coords.src).repair_amount(unit)
-                # Checks if adjacent unit can be healed when repairing
-                if unit.player is self.get(coords.src).player and (health_delta == 0):
-                    print("invalid repair, health is at max")
-                    return False
-                print("valid repair")
-                return True
-
+                # If units belong to same player (attempting repair)
+                if unit.player is self.get(coords.src).player:
+                    health_delta = self.get(coords.src).repair_amount(unit)
+                    # Checks if valid repair
+                    if health_delta == 0:
+                        print("invalid repair")
+                        return False
+                    else:
+                        print("valid repair")
+                        return True
+                # If opposing units (attempting attack)
+                else:
+                    print("valid attack")
+                    return True
         # Checks if src and dst coords are the same (initiating self-destruct)
         elif coords.src == coords.dst:
             print("valid self-destruction")
             return True
-
         # Checks if trying to move to non-adjacent space and not self-destructing
         else:
             print("invalid move, non-adjacent space selected")
