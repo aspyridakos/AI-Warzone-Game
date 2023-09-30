@@ -12,7 +12,14 @@ import requests
 # maximum and minimum values for our heuristic scores (usually represents an end of game condition)
 MAX_HEURISTIC_SCORE = 2000000000
 MIN_HEURISTIC_SCORE = -2000000000
+OUTPUT_FILE = ''
 
+
+def append_to_file(result):
+    """Appends game actions to existing log file"""
+    global OUTPUT_FILE
+    with open(OUTPUT_FILE, 'a') as f:
+        f.write("{r}\n".format(r=result))
 
 
 class UnitType(Enum):
@@ -428,7 +435,7 @@ class Game:
                 case 0:
                     self.set(coords.dst, self.get(coords.src))
                     self.set(coords.src, None)
-                    return True, ""
+                    return True, "-> Moved from {src} to {dst}".format(dst=coords.dst, src=coords.src)
                 # Repair
                 case 1:
                     health_delta = self.get(coords.src).repair_amount(self.get(coords.dst))
@@ -556,6 +563,7 @@ class Game:
                     (success, result) = self.perform_move(mv)
                     print(f"Broker {self.next_player.name}: ", end='')
                     print(result)
+                    append_to_file(result)
                     if success:
                         self.next_turn()
                         break
@@ -567,6 +575,7 @@ class Game:
                 if success:
                     print(f"Player {self.next_player.name}: ", end='')
                     print(result)
+                    append_to_file(result)
                     self.next_turn()
                     break
                 else:
@@ -695,7 +704,6 @@ class Game:
         return None
 
 
-
 ##############################################################################################################
 
 def main():
@@ -765,7 +773,8 @@ def main():
         print(game)
         winner = game.has_winner()
         if winner is not None:
-            print(f"{winner.name} wins!")
+            print(f"{winner.name} won in {game.turns_played} turns!")
+            append_to_file(f"{winner.name} won in {game.turns_played} turns!")
             break
         turn_info = "Turn # {turns}/{max}".format(turns=game.turns_played + 1, max=game.options.max_turns)
         append_to_file(turn_info)
@@ -785,13 +794,11 @@ def main():
             if move is not None:
                 game.post_move_to_broker(move)
             else:
+                append_to_file("Computer doesn't know what to do!!!")
+                append_to_file(f"Game over")
                 print("Computer doesn't know what to do!!!")
+                print("Game over")
                 exit(1)
-
-    # Saves to a file named movesmade.txt
-    if winner is not None:
-        game.moves_to_file("MovesMade.txt")
-
 
 
 ##############################################################################################################
