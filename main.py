@@ -14,6 +14,7 @@ MAX_HEURISTIC_SCORE = 2000000000
 MIN_HEURISTIC_SCORE = -2000000000
 
 
+
 class UnitType(Enum):
     """Every unit type."""
     AI = 0
@@ -434,7 +435,7 @@ class Game:
                     health_before = self.get(coords.dst).health
                     # modify health of unit at destination
                     self.mod_health(coords.dst, health_delta)
-                    return True, "repair outcome: health before = {hb} and health after = {ha}" \
+                    return True, "-> Repair outcome: health before = {hb} and health after = {ha}" \
                         .format(hb=health_before, ha=self.get(coords.dst).health)
                 # Attack
                 case 2:
@@ -447,8 +448,8 @@ class Game:
                     # check if either unit is dead and remove if it is
                     self.remove_dead(coords.src)
                     self.remove_dead(coords.dst)
-                    return True, "combat damage: to source = {df}, to target {dt}".format(df=damage_from_opponent,
-                                                                                          dt=damage_to_opponent)
+                    return True, "-> Combat damage: to source = {df}, to target {dt}".format(df=damage_from_opponent,
+                                                                                             dt=damage_to_opponent)
                 # Self-destruct
                 case 3:
                     total_damage = 0
@@ -464,14 +465,8 @@ class Game:
                             total_damage += 2
                         # check if unit is dead and remove if it is
                         self.remove_dead(coord)
-                    return True, "self-destructed for {td} total damage".format(td=total_damage)
+                    return True, "-> Self-destructed for {td} total damage".format(td=total_damage)
         return False, "invalid move"
-
-    def moves_to_file(self, file_name: str):
-        """Opens the file and write ot it for whatever moves were made by each player"""
-        with open(file_name, 'w') as f:
-            for i, move in enumerate(self.moves_made, start=1):
-                f.write("Move %d: %s -> %s\n" % (i, move.src.to_string(), move.dst.to_string()))
 
     def next_turn(self):
         """Transitions game to the next turn."""
@@ -484,6 +479,31 @@ class Game:
         output = ""
         output += f"Next player: {self.next_player.name}\n"
         output += f"Turns played: {self.turns_played}\n"
+        coord = Coord()
+        output += "\n   "
+        for col in range(dim):
+            coord.col = col
+            label = coord.col_string()
+            output += f"{label:^3} "
+        output += "\n"
+        for row in range(dim):
+            coord.row = row
+            label = coord.row_string()
+            output += f"{label}: "
+            for col in range(dim):
+                coord.col = col
+                unit = self.get(coord)
+                if unit is None:
+                    output += " .  "
+                else:
+                    output += f"{str(unit):^3} "
+            output += "\n"
+        return output
+
+    def board_only_to_string(self) -> str:
+        """Pretty text representation of the board configuration only."""
+        dim = self.options.dim
+        output = ""
         coord = Coord()
         output += "\n   "
         for col in range(dim):
@@ -675,6 +695,7 @@ class Game:
         return None
 
 
+
 ##############################################################################################################
 
 def main():
@@ -682,21 +703,28 @@ def main():
     parser = argparse.ArgumentParser(
         prog='ai_wargame',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--max_turns', type=int, help='maximum number of turns')
+    parser.add_argument('--alpha_beta', type=bool, help='alpha-beta heuristic on')
     parser.add_argument('--max_depth', type=int, help='maximum search depth')
     parser.add_argument('--max_time', type=float, help='maximum search time')
     parser.add_argument('--game_type', type=str, default="manual", help='game type: auto|attacker|defender|manual')
     parser.add_argument('--broker', type=str, help='play via a game broker')
+    parser.add_argument('--heuristic', type=str, help='AI heuristic')
     args = parser.parse_args()
 
     # parse the game type
     if args.game_type == "attacker":
         game_type = GameType.AttackerVsComp
+        play_mode = "player 1 = AI & player 2 = H"
     elif args.game_type == "defender":
         game_type = GameType.CompVsDefender
+        play_mode = "player 1 = H & player 2 = AI"
     elif args.game_type == "manual":
         game_type = GameType.AttackerVsDefender
+        play_mode = "player 1 = H & player 2 = H"
     else:
         game_type = GameType.CompVsComp
+        play_mode = "player 1 = AI & player 2 = AI"
 
     # set up game options
     options = Options(game_type=game_type)
@@ -708,20 +736,45 @@ def main():
         options.max_time = args.max_time
     if args.broker is not None:
         options.broker = args.broker
+    if args.max_turns is not None:
+        options.max_turns = args.max_turns
 
     # create a new game
     game = Game(options=options)
 
+    global OUTPUT_FILE
+    OUTPUT_FILE = 'gameTrace-{b}-{t}-{m}.txt'.format(b=args.alpha_beta if args.alpha_beta is not None else "false",
+                                                     t=args.max_time if args.max_time is not None else options.max_time,
+                                                     m=args.max_turns)
+
+    with open(OUTPUT_FILE, 'w') as f:
+        f.write("----------------\n")
+        f.write("GAME PARAMETERS: \nTurn timeout: {t} seconds\nMax turns: {m}\nPlay mode: {p}\n".format(
+            t=args.max_time if args.max_time is not None else options.max_time, m=args.max_turns, p=play_mode))
+        if args.game_type != "manual":
+            f.write("Alpha-beta: {a}\nHeuristic: {h}\n".format(a="on" if args.alpha_beta else "off", h=args.heuristic))
+        f.write("----------------\n")
+
     # the main game loop
-    while True:
+    while game.turns_played <= game.options.max_turns:
+        if game.turns_played == 0:
+            append_to_file("\nGAME START\n")
+            append_to_file(game)
+            append_to_file("----------------------")
         print()
         print(game)
         winner = game.has_winner()
         if winner is not None:
             print(f"{winner.name} wins!")
             break
+        turn_info = "Turn # {turns}/{max}".format(turns=game.turns_played + 1, max=game.options.max_turns)
+        append_to_file(turn_info)
+        append_to_file("Player: {p}\n".format(p=game.next_player.name))
         if game.options.game_type == GameType.AttackerVsDefender:
             game.human_turn()
+            if game.turns_played != 0:
+                append_to_file(game.board_only_to_string())
+                append_to_file("----------------------")
         elif game.options.game_type == GameType.AttackerVsComp and game.next_player == Player.Attacker:
             game.human_turn()
         elif game.options.game_type == GameType.CompVsDefender and game.next_player == Player.Defender:
@@ -738,6 +791,7 @@ def main():
     # Saves to a file named movesmade.txt
     if winner is not None:
         game.moves_to_file("MovesMade.txt")
+
 
 
 ##############################################################################################################
