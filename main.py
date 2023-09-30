@@ -12,6 +12,14 @@ import requests
 # maximum and minimum values for our heuristic scores (usually represents an end of game condition)
 MAX_HEURISTIC_SCORE = 2000000000
 MIN_HEURISTIC_SCORE = -2000000000
+OUTPUT_FILE = ''
+
+
+def append_to_file(result):
+    """Appends game actions to existing log file"""
+    global OUTPUT_FILE
+    with open(OUTPUT_FILE, 'a') as f:
+        f.write("{r}\n".format(r=result))
 
 
 class UnitType(Enum):
@@ -259,6 +267,7 @@ class Game:
     stats: Stats = field(default_factory=Stats)
     _attacker_has_ai: bool = True
     _defender_has_ai: bool = True
+    move_id: int = 0
 
     def __post_init__(self):
         """Automatically called after class init to set up the default board state."""
@@ -343,6 +352,7 @@ class Game:
                 # Can move freely in attack or defense, and in combat
                 if unit_type in [1, 2]:
                     print("valid move for Virus and Tech units")
+                    self.move_id = 0
                     return True
 
                 # Check if engaged in combat and AI, Program or Firewall
@@ -365,6 +375,7 @@ class Game:
                 if (player_type is Player.Attacker.value
                         and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]):
                     print("valid move for AI, Program or Firewall defender units (up or left)")
+                    self.move_id = 0
                     return True
 
                 # Player is a defender and unit is an AI, Program or Firewall
@@ -372,6 +383,7 @@ class Game:
                 elif (player_type is Player.Defender.value
                       and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]):
                     print("valid move for AI, Program or Firewall defender units (down or right)")
+                    self.move_id = 0
                     return True
                 else:
                     print("invalid more for AI, Program or Firewall while not engaged in combat")
@@ -379,19 +391,27 @@ class Game:
 
             # Checks if attacking or repairing piece
             else:
-                health_delta = self.get(coords.src).repair_amount(unit)
-                # Checks if adjacent unit can be healed when repairing
-                if unit.player is self.get(coords.src).player and (health_delta == 0):
-                    print("invalid repair, health is at max")
-                    return False
-                print("valid repair")
-                return True
-
+                # If units belong to same player (attempting repair)
+                if unit.player is self.get(coords.src).player:
+                    health_delta = self.get(coords.src).repair_amount(unit)
+                    # Checks if valid repair
+                    if health_delta == 0:
+                        print("invalid repair")
+                        return False
+                    else:
+                        self.move_id = 1
+                        print("valid repair")
+                        return True
+                # If opposing units (attempting attack)
+                else:
+                    self.move_id = 2
+                    print("valid attack")
+                    return True
         # Checks if src and dst coords are the same (initiating self-destruct)
         elif coords.src == coords.dst:
+            self.move_id = 3
             print("valid self-destruction")
             return True
-
         # Checks if trying to move to non-adjacent space and not self-destructing
         else:
             print("invalid move, non-adjacent space selected")
@@ -408,19 +428,52 @@ class Game:
         return False
 
     def perform_move(self, coords: CoordPair) -> Tuple[bool, str]:
-        """Validate and perform a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
+        """Validate and perform a move expressed as a CoordPair."""
         if self.is_valid_move(coords):
-            self.set(coords.dst, self.get(coords.src))
-            self.set(coords.src, None)
-            self.moves_made.append(coords.clone())   # Records the moves in the list created
-            return True, ""
+            match self.move_id:
+                # Movement
+                case 0:
+                    self.set(coords.dst, self.get(coords.src))
+                    self.set(coords.src, None)
+                    return True, "-> Moved from {src} to {dst}".format(dst=coords.dst, src=coords.src)
+                # Repair
+                case 1:
+                    health_delta = self.get(coords.src).repair_amount(self.get(coords.dst))
+                    health_before = self.get(coords.dst).health
+                    # modify health of unit at destination
+                    self.mod_health(coords.dst, health_delta)
+                    return True, "-> Repair outcome: health before = {hb} and health after = {ha}" \
+                        .format(hb=health_before, ha=self.get(coords.dst).health)
+                # Attack
+                case 2:
+                    damage_to_opponent = self.get(coords.src).damage_amount(self.get(coords.dst))
+                    damage_from_opponent = self.get(coords.dst).damage_amount(self.get(coords.src))
+                    # modify health of source unit
+                    self.mod_health(coords.src, -damage_from_opponent)
+                    # modify health of destination unit
+                    self.mod_health(coords.dst, -damage_to_opponent)
+                    # check if either unit is dead and remove if it is
+                    self.remove_dead(coords.src)
+                    self.remove_dead(coords.dst)
+                    return True, "-> Combat damage: to source = {df}, to target {dt}".format(df=damage_from_opponent,
+                                                                                             dt=damage_to_opponent)
+                # Self-destruct
+                case 3:
+                    total_damage = 0
+                    surrounding_units = coords.src.iter_range(1)
+                    for coord in surrounding_units:
+                        # unit to self-destruct
+                        if str(coord) == str(coords.src):
+                            unit_health = self.get(coord).health
+                            self.mod_health(coord, -unit_health)
+                        # surrounding units to damage
+                        elif self.is_valid_coord(coord) and self.get(coord) is not None:
+                            self.mod_health(coord, -2)
+                            total_damage += 2
+                        # check if unit is dead and remove if it is
+                        self.remove_dead(coord)
+                    return True, "-> Self-destructed for {td} total damage".format(td=total_damage)
         return False, "invalid move"
-
-    def moves_to_file(self, file_name: str):
-        """Opens the file and write ot it for whatever moves were made by each player"""
-        with open(file_name, 'w') as f:
-            for i, move in enumerate(self.moves_made, start=1):
-                f.write("Move %d: %s -> %s\n" % (i, move.src.to_string(), move.dst.to_string()))
 
     def next_turn(self):
         """Transitions game to the next turn."""
@@ -433,6 +486,31 @@ class Game:
         output = ""
         output += f"Next player: {self.next_player.name}\n"
         output += f"Turns played: {self.turns_played}\n"
+        coord = Coord()
+        output += "\n   "
+        for col in range(dim):
+            coord.col = col
+            label = coord.col_string()
+            output += f"{label:^3} "
+        output += "\n"
+        for row in range(dim):
+            coord.row = row
+            label = coord.row_string()
+            output += f"{label}: "
+            for col in range(dim):
+                coord.col = col
+                unit = self.get(coord)
+                if unit is None:
+                    output += " .  "
+                else:
+                    output += f"{str(unit):^3} "
+            output += "\n"
+        return output
+
+    def board_only_to_string(self) -> str:
+        """Pretty text representation of the board configuration only."""
+        dim = self.options.dim
+        output = ""
         coord = Coord()
         output += "\n   "
         for col in range(dim):
@@ -485,6 +563,7 @@ class Game:
                     (success, result) = self.perform_move(mv)
                     print(f"Broker {self.next_player.name}: ", end='')
                     print(result)
+                    append_to_file(result)
                     if success:
                         self.next_turn()
                         break
@@ -496,6 +575,7 @@ class Game:
                 if success:
                     print(f"Player {self.next_player.name}: ", end='')
                     print(result)
+                    append_to_file(result)
                     self.next_turn()
                     break
                 else:
@@ -631,21 +711,28 @@ def main():
     parser = argparse.ArgumentParser(
         prog='ai_wargame',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--max_turns', type=int, help='maximum number of turns')
+    parser.add_argument('--alpha_beta', type=bool, help='alpha-beta heuristic on')
     parser.add_argument('--max_depth', type=int, help='maximum search depth')
     parser.add_argument('--max_time', type=float, help='maximum search time')
     parser.add_argument('--game_type', type=str, default="manual", help='game type: auto|attacker|defender|manual')
     parser.add_argument('--broker', type=str, help='play via a game broker')
+    parser.add_argument('--heuristic', type=str, help='AI heuristic')
     args = parser.parse_args()
 
     # parse the game type
     if args.game_type == "attacker":
         game_type = GameType.AttackerVsComp
+        play_mode = "player 1 = AI & player 2 = H"
     elif args.game_type == "defender":
         game_type = GameType.CompVsDefender
+        play_mode = "player 1 = H & player 2 = AI"
     elif args.game_type == "manual":
         game_type = GameType.AttackerVsDefender
+        play_mode = "player 1 = H & player 2 = H"
     else:
         game_type = GameType.CompVsComp
+        play_mode = "player 1 = AI & player 2 = AI"
 
     # set up game options
     options = Options(game_type=game_type)
@@ -657,20 +744,46 @@ def main():
         options.max_time = args.max_time
     if args.broker is not None:
         options.broker = args.broker
+    if args.max_turns is not None:
+        options.max_turns = args.max_turns
 
     # create a new game
     game = Game(options=options)
 
+    global OUTPUT_FILE
+    OUTPUT_FILE = 'gameTrace-{b}-{t}-{m}.txt'.format(b=args.alpha_beta if args.alpha_beta is not None else "false",
+                                                     t=args.max_time if args.max_time is not None else options.max_time,
+                                                     m=args.max_turns)
+
+    with open(OUTPUT_FILE, 'w') as f:
+        f.write("----------------\n")
+        f.write("GAME PARAMETERS: \nTurn timeout: {t} seconds\nMax turns: {m}\nPlay mode: {p}\n".format(
+            t=args.max_time if args.max_time is not None else options.max_time, m=args.max_turns, p=play_mode))
+        if args.game_type != "manual":
+            f.write("Alpha-beta: {a}\nHeuristic: {h}\n".format(a="on" if args.alpha_beta else "off", h=args.heuristic))
+        f.write("----------------\n")
+
     # the main game loop
-    while True:
+    while game.turns_played <= game.options.max_turns:
+        if game.turns_played == 0:
+            append_to_file("\nGAME START\n")
+            append_to_file(game)
+            append_to_file("----------------------")
         print()
         print(game)
         winner = game.has_winner()
         if winner is not None:
-            print(f"{winner.name} wins!")
+            print(f"{winner.name} won in {game.turns_played} turns!")
+            append_to_file(f"{winner.name} won in {game.turns_played} turns!")
             break
+        turn_info = "Turn # {turns}/{max}".format(turns=game.turns_played + 1, max=game.options.max_turns)
+        append_to_file(turn_info)
+        append_to_file("Player: {p}\n".format(p=game.next_player.name))
         if game.options.game_type == GameType.AttackerVsDefender:
             game.human_turn()
+            if game.turns_played != 0:
+                append_to_file(game.board_only_to_string())
+                append_to_file("----------------------")
         elif game.options.game_type == GameType.AttackerVsComp and game.next_player == Player.Attacker:
             game.human_turn()
         elif game.options.game_type == GameType.CompVsDefender and game.next_player == Player.Defender:
@@ -681,12 +794,11 @@ def main():
             if move is not None:
                 game.post_move_to_broker(move)
             else:
+                append_to_file("Computer doesn't know what to do!!!")
+                append_to_file(f"Game over")
                 print("Computer doesn't know what to do!!!")
+                print("Game over")
                 exit(1)
-
-    # Saves to a file named movesmade.txt
-    if winner is not None:
-        game.moves_to_file("MovesMade.txt")
 
 
 ##############################################################################################################
