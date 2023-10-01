@@ -344,7 +344,7 @@ class Game:
         if is_adjacent_coord:
             # Checks if attempting to move piece (destination coord is empty)
             if unit is None:
-                # gets the unit type of the source piece
+                # Gets the unit type of the source piece
                 unit_type = self.get(coords.src).type.value
 
                 # Check if Virus or Tech
@@ -423,7 +423,7 @@ class Game:
         ajd = Coord.iter_adjacent(coord)
         for adjacent_coord in ajd:
             enemy = self.get(adjacent_coord)
-            # return True if enemy player in one of adjacent coordinates
+            # Return True if enemy player in one of adjacent coordinates
             if enemy is not None and enemy.player != self.get(coord).player:
                 return True
         return False
@@ -432,7 +432,8 @@ class Game:
         """Validate and perform a move expressed as a CoordPair."""
         if self.is_valid_move(coords):
             match self.move_id:
-                # Movement with multiple cases of piece types
+                #multiple cases of scenarios with pieces
+                # Movement
                 case 0:
                     self.set(coords.dst, self.get(coords.src))
                     self.set(coords.src, None)
@@ -708,7 +709,7 @@ class Game:
 ##############################################################################################################
 
 def main():
-    # parse command line arguments
+    # Parse command line arguments
     parser = argparse.ArgumentParser(
         prog='ai_wargame',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -721,7 +722,7 @@ def main():
     parser.add_argument('--heuristic', type=str, help='AI heuristic: e0|e1|e2')
     args = parser.parse_args()
 
-    # parse the game type and set the descriptive string accordingly
+    # Parse the game type and set the descriptive string accordingly
     if args.game_type == "attacker":
         game_type = GameType.AttackerVsComp
         play_mode = "player 1 = AI & player 2 = H"
@@ -735,10 +736,10 @@ def main():
         game_type = GameType.CompVsComp
         play_mode = "player 1 = AI & player 2 = AI"
 
-    # set up game options
+    # Set up game options
     options = Options(game_type=game_type)
 
-    # override class defaults via command line options
+    # Override class defaults via command line options
     # Added additional arguments properly needed
     if args.max_depth is not None:
         options.max_depth = args.max_depth
@@ -749,10 +750,10 @@ def main():
     if args.max_turns is not None:
         options.max_turns = args.max_turns
 
-    # create a new game
+    # Create a new game
     game = Game(options=options)
 
-    # initialize name of output file based on arguments
+    # Initialize name of output file based on arguments
     # With proper argument parameters to have written
     global OUTPUT_FILE
     OUTPUT_FILE = 'gameTrace-{b}-{t}-{m}.txt'.format(b=args.alpha_beta if args.alpha_beta is not None else "false",
@@ -760,7 +761,7 @@ def main():
                                                      m=args.max_turns)
 
     # write game parameters to output file
-    # Opens the file and writes to it with the proper arguments needed.
+    # Opens the file and writes to it with the proper arguments needed
     with open(OUTPUT_FILE, 'w') as f:
         f.write("----------------\n")
         f.write("GAME PARAMETERS: \nTurn timeout: {t} seconds\nMax turns: {m}\nPlay mode: {p}\n".format(
@@ -769,9 +770,9 @@ def main():
             f.write("Alpha-beta: {a}\nHeuristic: {h}\n".format(a="on" if args.alpha_beta else "off", h=args.heuristic))
         f.write("----------------\n")
 
-    # the main game loop
+    # The main game loop
     while game.turns_played <= game.options.max_turns:
-        # append initial configuration of board to output file
+        # Append initial configuration of board to output file
         if game.turns_played == 0:
             append_to_file("\nGAME START\n")
             append_to_file(game)
@@ -789,7 +790,7 @@ def main():
         append_to_file("Player: {p}\n".format(p=game.next_player.name))
         if game.options.game_type == GameType.AttackerVsDefender:
             game.human_turn()
-            # append new board configuration to output file
+            # Append new board configuration to output file
             if game.turns_played != 0:
                 append_to_file(game.board_only_to_string())
                 append_to_file("----------------------")
