@@ -432,8 +432,8 @@ class Game:
         """Validate and perform a move expressed as a CoordPair."""
         if self.is_valid_move(coords):
             match self.move_id:
-                #multiple cases of scenarios with pieces
-                # Movement
+                # Available actions to play
+                # Movement type case
                 case 0:
                     self.set(coords.dst, self.get(coords.src))
                     self.set(coords.src, None)
