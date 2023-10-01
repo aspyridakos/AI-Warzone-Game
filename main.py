@@ -17,6 +17,7 @@ OUTPUT_FILE = ''
 
 def append_to_file(result):
     """Appends game actions to existing log file"""
+    # Function appends to the existing file by opening and writing to it as it did initially.
     global OUTPUT_FILE
     with open(OUTPUT_FILE, 'a') as f:
         f.write("{r}\n".format(r=result))
@@ -343,11 +344,12 @@ class Game:
         if is_adjacent_coord:
             # Checks if attempting to move piece (destination coord is empty)
             if unit is None:
-                # get unit type
+                # gets the unit type of the source piece
                 unit_type = self.get(coords.src).type.value
 
                 # Check if Virus or Tech
                 # Can move freely in attack or defense, and in combat
+                # After check, returns statement that move is valid
                 if unit_type in [1, 2]:
                     print("valid move for Virus and Tech units")
                     self.move_id = 0
@@ -417,6 +419,7 @@ class Game:
 
     def engaged_in_combat(self, coord: Coord) -> bool:
         """Check if unit is engaged in combat."""
+        # Function determines if player is engaged in combat with piece
         ajd = Coord.iter_adjacent(coord)
         for adjacent_coord in ajd:
             enemy = self.get(adjacent_coord)
@@ -429,12 +432,12 @@ class Game:
         """Validate and perform a move expressed as a CoordPair."""
         if self.is_valid_move(coords):
             match self.move_id:
-                # Movement
+                # Movement with multiple cases of piece types
                 case 0:
                     self.set(coords.dst, self.get(coords.src))
                     self.set(coords.src, None)
                     return True, "-> Moved from {src} to {dst}".format(dst=coords.dst, src=coords.src)
-                # Repair
+                # Repair type case
                 case 1:
                     health_delta = self.get(coords.src).repair_amount(self.get(coords.dst))
                     health_before = self.get(coords.dst).health
@@ -442,7 +445,7 @@ class Game:
                     self.mod_health(coords.dst, health_delta)
                     return True, "-> Repair outcome: health before = {hb} and health after = {ha}" \
                         .format(hb=health_before, ha=self.get(coords.dst).health)
-                # Attack
+                # Attack type case
                 case 2:
                     damage_to_opponent = self.get(coords.src).damage_amount(self.get(coords.dst))
                     damage_from_opponent = self.get(coords.dst).damage_amount(self.get(coords.src))
@@ -455,7 +458,7 @@ class Game:
                     self.remove_dead(coords.dst)
                     return True, "-> Combat damage: to source = {df}, to target {dt}".format(df=damage_from_opponent,
                                                                                              dt=damage_to_opponent)
-                # Self-destruct
+                # Self-destruct type case
                 case 3:
                     total_damage = 0
                     surrounding_units = coords.src.iter_range(1)
@@ -736,6 +739,7 @@ def main():
     options = Options(game_type=game_type)
 
     # override class defaults via command line options
+    # Added additional arguments properly needed
     if args.max_depth is not None:
         options.max_depth = args.max_depth
     if args.max_time is not None:
@@ -749,12 +753,14 @@ def main():
     game = Game(options=options)
 
     # initialize name of output file based on arguments
+    # With proper argument parameters to have written
     global OUTPUT_FILE
     OUTPUT_FILE = 'gameTrace-{b}-{t}-{m}.txt'.format(b=args.alpha_beta if args.alpha_beta is not None else "false",
                                                      t=args.max_time if args.max_time is not None else options.max_time,
                                                      m=args.max_turns)
 
     # write game parameters to output file
+    # Opens the file and writes to it with the proper arguments needed.
     with open(OUTPUT_FILE, 'w') as f:
         f.write("----------------\n")
         f.write("GAME PARAMETERS: \nTurn timeout: {t} seconds\nMax turns: {m}\nPlay mode: {p}\n".format(
@@ -765,7 +771,7 @@ def main():
 
     # the main game loop
     while game.turns_played <= game.options.max_turns:
-        # append initial configuration of board to ouput file
+        # append initial configuration of board to output file
         if game.turns_played == 0:
             append_to_file("\nGAME START\n")
             append_to_file(game)
@@ -773,6 +779,7 @@ def main():
         print()
         print(game)
         winner = game.has_winner()
+        # Append to file if a winner is declared. (game is over)
         if winner is not None:
             print(f"{winner.name} won in {game.turns_played} turns!")
             append_to_file(f"{winner.name} won in {game.turns_played} turns!")
@@ -796,6 +803,7 @@ def main():
             if move is not None:
                 game.post_move_to_broker(move)
             else:
+                # If stalemate occurs, then game over
                 append_to_file("Computer doesn't know what to do!!!")
                 append_to_file(f"Game over")
                 print("Computer doesn't know what to do!!!")
