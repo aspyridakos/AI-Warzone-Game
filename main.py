@@ -257,9 +257,6 @@ class Stats:
 @dataclass(slots=True)
 class Game:
     """Representation of the game state."""
-    # List creation to store the moves being made by each human
-    moves_made: list[CoordPair] = field(default_factory=list)
-
     board: list[list[Unit | None]] = field(default_factory=list)
     next_player: Player = Player.Attacker
     turns_played: int = 0
@@ -342,8 +339,9 @@ class Game:
         unit = self.get(coords.dst)
         is_adjacent_coord = coords.dst in coords.src.iter_adjacent()
 
-        # Checks if moving piece (destination coord is empty)
+        # Checks if destination coordinate is adjacent
         if is_adjacent_coord:
+            # Checks if attempting to move piece (destination coord is empty)
             if unit is None:
                 # get unit type
                 unit_type = self.get(coords.src).type.value
@@ -361,7 +359,7 @@ class Game:
                     print("invalid move for AI, Program or Firewall units engaged in combat")
                     return False
 
-                # get player type
+                # Get player type
                 player_type = self.get(coords.src).player.value
 
                 # List out adjacent coordinates
@@ -717,10 +715,10 @@ def main():
     parser.add_argument('--max_time', type=float, help='maximum search time')
     parser.add_argument('--game_type', type=str, default="manual", help='game type: auto|attacker|defender|manual')
     parser.add_argument('--broker', type=str, help='play via a game broker')
-    parser.add_argument('--heuristic', type=str, help='AI heuristic')
+    parser.add_argument('--heuristic', type=str, help='AI heuristic: e0|e1|e2')
     args = parser.parse_args()
 
-    # parse the game type
+    # parse the game type and set the descriptive string accordingly
     if args.game_type == "attacker":
         game_type = GameType.AttackerVsComp
         play_mode = "player 1 = AI & player 2 = H"
@@ -750,11 +748,13 @@ def main():
     # create a new game
     game = Game(options=options)
 
+    # initialize name of output file based on arguments
     global OUTPUT_FILE
     OUTPUT_FILE = 'gameTrace-{b}-{t}-{m}.txt'.format(b=args.alpha_beta if args.alpha_beta is not None else "false",
                                                      t=args.max_time if args.max_time is not None else options.max_time,
                                                      m=args.max_turns)
 
+    # write game parameters to output file
     with open(OUTPUT_FILE, 'w') as f:
         f.write("----------------\n")
         f.write("GAME PARAMETERS: \nTurn timeout: {t} seconds\nMax turns: {m}\nPlay mode: {p}\n".format(
@@ -765,6 +765,7 @@ def main():
 
     # the main game loop
     while game.turns_played <= game.options.max_turns:
+        # append initial configuration of board to ouput file
         if game.turns_played == 0:
             append_to_file("\nGAME START\n")
             append_to_file(game)
@@ -781,6 +782,7 @@ def main():
         append_to_file("Player: {p}\n".format(p=game.next_player.name))
         if game.options.game_type == GameType.AttackerVsDefender:
             game.human_turn()
+            # append new board configuration to output file
             if game.turns_played != 0:
                 append_to_file(game.board_only_to_string())
                 append_to_file("----------------------")
