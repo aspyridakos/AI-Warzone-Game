@@ -655,6 +655,35 @@ class Game:
         print(f"Elapsed time: {elapsed_seconds:0.1f}s")
         return move
 
+    def get_heuristic_e0(self) -> int:
+        unit_types_dict = {unit_type: 0 for unit_type in UnitType}
+        players_unit_type_counts = {Player.Attacker: unit_types_dict, Player.Defender: unit_types_dict}
+
+        for player in Player:
+            for coord, unit in self.player_units(player):
+                players_unit_type_counts[player][unit.type] += 1
+
+        # Attacker piece counts
+        attacker_ai = players_unit_type_counts[Player.Attacker][UnitType.AI]
+        attacker_tech = players_unit_type_counts[Player.Attacker][UnitType.Tech]
+        attacker_virus = players_unit_type_counts[Player.Attacker][UnitType.Virus]
+        attacker_program = players_unit_type_counts[Player.Attacker][UnitType.Program]
+        attacker_firewall = players_unit_type_counts[Player.Attacker][UnitType.Firewall]
+
+        # Defender piece counts
+        defender_ai = players_unit_type_counts[Player.Defender][UnitType.AI]
+        defender_tech = players_unit_type_counts[Player.Defender][UnitType.Tech]
+        defender_virus = players_unit_type_counts[Player.Defender][UnitType.Virus]
+        defender_program = players_unit_type_counts[Player.Defender][UnitType.Program]
+        defender_firewall = players_unit_type_counts[Player.Defender][UnitType.Firewall]
+
+        e0 = ((3 * attacker_virus + 3 * attacker_tech + 3 * attacker_firewall
+               + 3 * attacker_program + 9999 * attacker_ai)
+              - (3 * defender_virus + 3 * defender_tech + 3 * defender_firewall
+                 + 3 * defender_program + 9999 * defender_ai))
+
+        return e0
+
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
         if self.options.broker is None:
