@@ -667,13 +667,21 @@ class Game:
         attacker_counts = player_unit_counts[Player.Attacker]
         defender_counts = player_unit_counts[Player.Defender]
 
-        e0 = ((3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
-               3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
-               9999 * attacker_counts[UnitType.AI]) -
-              (3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
-               3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
-               9999 * defender_counts[UnitType.AI]))
-
+        e0: int
+        if self._attacker_has_ai:
+            e0 = ((3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
+                   3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
+                   9999 * attacker_counts[UnitType.AI]) -
+                  (3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
+                   3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
+                   9999 * defender_counts[UnitType.AI]))
+        else:
+            e0 = (((3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
+                    3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
+                    9999 * defender_counts[UnitType.AI]))
+                  - (3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
+                     3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
+                     9999 * attacker_counts[UnitType.AI]))
         return e0
 
     def post_move_to_broker(self, move: CoordPair):
