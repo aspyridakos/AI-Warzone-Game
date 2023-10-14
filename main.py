@@ -1,6 +1,7 @@
 from __future__ import annotations
 import argparse
 import copy
+from collections import defaultdict
 from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass, field
@@ -654,6 +655,34 @@ class Game:
             print(f"Eval perf.: {total_evals / self.stats.total_seconds / 1000:0.1f}k/s")
         print(f"Elapsed time: {elapsed_seconds:0.1f}s")
         return move
+
+    def get_heuristic_e0(self) -> int:
+        """Calculate e0 heuristic"""
+        player_unit_counts = {player: defaultdict(int) for player in Player}
+
+        for player in Player:
+            for coord, unit in self.player_units(player):
+                player_unit_counts[player][unit.type] += 1
+
+        attacker_counts = player_unit_counts[Player.Attacker]
+        defender_counts = player_unit_counts[Player.Defender]
+
+        e0: int
+        if self._attacker_has_ai:
+            e0 = ((3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
+                   3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
+                   9999 * attacker_counts[UnitType.AI]) -
+                  (3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
+                   3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
+                   9999 * defender_counts[UnitType.AI]))
+        else:
+            e0 = (((3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
+                    3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
+                    9999 * defender_counts[UnitType.AI]))
+                  - (3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
+                     3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
+                     9999 * attacker_counts[UnitType.AI]))
+        return e0
 
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
