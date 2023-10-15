@@ -540,7 +540,7 @@ class Game:
         return self.to_string()
 
     def is_valid_coord(self, coord: Coord) -> bool:
-        """Check if a Coord is valid within out board dimensions."""
+        """Check if a Coord is valid within our board dimensions."""
         dim = self.options.dim
         if coord.row < 0 or coord.row >= dim or coord.col < 0 or coord.col >= dim:
             return False
@@ -638,10 +638,53 @@ class Game:
         else:
             return 0, None, 0
 
+    def minimax(self, depth: int, maximizing_player: bool) -> Tuple[int, CoordPair | None]:
+        """Minimax algorithm implementation"""
+        moves = self.move_candidates()
+
+        if depth == 0 or self.is_finished():
+            return self.get_heuristic_e0(), None
+
+        if maximizing_player:
+            best_move = MIN_HEURISTIC_SCORE
+            for move in moves:
+                self.set(move.dst, self.get(move.src))
+                current_move = self.minimax(depth - 1, False)
+                best_move = max(best_move, current_move)
+            return best_move
+        else:
+            best_move = MAX_HEURISTIC_SCORE
+            for move in moves:
+                self.set(move.dst, self.get(move.src))
+                current_move = self.minimax(depth - 1, True)
+                best_move = min(best_move, current_move)
+
     def suggest_move(self) -> CoordPair | None:
         """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
         start_time = datetime.now()
+
+        # Clone the board to test minimax options
+        board_copy = self.clone()
+
+        # TODO: set other heuristics here (e1 => aggressive play, e2 => defensive play???)
+        initial_heuristic = self.get_heuristic_e0()
+
+        # Optimizing for MAX player
+        if initial_heuristic > 0:
+            suggested_move = board_copy.minimax(self.options.max_depth, True)
+        # Optimizing for MIN player
+        elif initial_heuristic < 0:
+            suggested_move = board_copy.minimax(self.options.min_depth, True)
+        # Optimizing for AVERAGE player
+        else:
+            # TODO: Optimize depth later
+            avg_depth = int((self.options.max_depth + self.options.min_depth) / 2)
+            suggested_move = board_copy.minimax(avg_depth, True)
+
+        # FIXME: Not sure where avg_depth comes from...
+        # (score, move, avg_depth) = suggested_move, 4
         (score, move, avg_depth) = self.random_move()
+
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
         self.stats.total_seconds += elapsed_seconds
         print(f"Heuristic score: {score}")
