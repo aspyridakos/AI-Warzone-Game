@@ -267,6 +267,7 @@ class Game:
     _attacker_has_ai: bool = True
     _defender_has_ai: bool = True
     move_id: int = 0
+    previous_game_state = []
 
     def __post_init__(self):
         """Automatically called after class init to set up the default board state."""
@@ -431,6 +432,10 @@ class Game:
 
     def perform_move(self, coords: CoordPair) -> Tuple[bool, str]:
         """Validate and perform a move expressed as a CoordPair."""
+
+        previous = self.clone()
+        self.previous_game_state.append(previous)
+
         if self.is_valid_move(coords):
             match self.move_id:
                 # Available actions to play
@@ -477,6 +482,12 @@ class Game:
                         self.remove_dead(coord)
                     return True, "-> Self-destructed for {td} total damage".format(td=total_damage)
         return False, "invalid move"
+
+    def undo_move(self):
+        previous_board = self.previous_game_state.pop()
+        self.board = previous_board.board
+        self.next_player = previous_board.next_player
+        self.turns_played = previous_board.turns_played
 
     def next_turn(self):
         """Transitions game to the next turn."""
@@ -641,23 +652,35 @@ class Game:
     def minimax(self, depth: int, maximizing_player: bool) -> Tuple[int, CoordPair | None]:
         """Minimax algorithm implementation"""
         moves = self.move_candidates()
+        # verify if random.choice is legit
+        best_move = random.choice(list(moves))
 
         if depth == 0 or self.is_finished():
             return self.get_heuristic_e0(), None
 
         if maximizing_player:
-            best_move = MIN_HEURISTIC_SCORE
+            max_score = MIN_HEURISTIC_SCORE
             for move in moves:
-                self.set(move.dst, self.get(move.src))
-                current_move = self.minimax(depth - 1, False)
-                best_move = max(best_move, current_move)
-            return best_move
+                # previous = self.clone()
+                # self.previous_game_state.append(previous)
+                # previous.perform_move(move)
+                self.perform_move(move)
+                current_score = self.minimax(depth - 1, False)[0]
+                self.undo_move()
+                if current_score > max_score:
+                    max_score = current_score
+                    best_move = move
+            return max_score, best_move
         else:
-            best_move = MAX_HEURISTIC_SCORE
+            min_score = MAX_HEURISTIC_SCORE
             for move in moves:
-                self.set(move.dst, self.get(move.src))
-                current_move = self.minimax(depth - 1, True)
-                best_move = min(best_move, current_move)
+                self.perform_move(move)
+                current_score = self.minimax(depth - 1, True)[0]
+                self.undo_move()
+                if current_score < min_score:
+                    min_score = current_score
+                    best_move = move
+            return min_score, best_move
 
     def suggest_move(self) -> CoordPair | None:
         """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
@@ -863,6 +886,10 @@ def main():
             game.human_turn()
             # Append new board configuration to output file
             if game.turns_played != 0:
+                # previous_board = game.previous_game_state.pop()
+                # append_to_file("previous game state: ")
+                # append_to_file(previous_board.board_only_to_string())
+                # append_to_file("current game state: ")
                 append_to_file(game.board_only_to_string())
                 append_to_file("----------------------")
         elif game.options.game_type == GameType.AttackerVsComp and game.next_player == Player.Attacker:
