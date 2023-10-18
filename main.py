@@ -744,23 +744,36 @@ class Game:
         if self._attacker_has_ai:
             e1 = (
                 # Prioritize killing pieces that can move/attack when engaged in combat (Tech and Virus)
-                    (10 * (attacker_counts[UnitType.Tech] + 10* attacker_counts[UnitType.Virus])) +
+                    (6 * (attacker_counts[UnitType.Tech] + 6 * attacker_counts[UnitType.Virus])) +
                 # Prioritize keeping your own pieces alive that are more powerful on attack (Firewall and Program)
-                    (5 * (attacker_counts[UnitType.Firewall] + 5 * attacker_counts[UnitType.Program])) -
+                    (3 * (attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program])) -
                 # Always prioritize the AI since it's the game decider
                     (9999 * attacker_counts[UnitType.AI])
             )
         else:
             e1 = (
                 # Prioritize killing pieces that can move/attack when engaged in combat (Tech and Virus)
-                    (10 * (defender_counts[UnitType.Tech] + 10 * defender_counts[UnitType.Virus])) +
+                    (6 * (defender_counts[UnitType.Tech] + 6 * defender_counts[UnitType.Virus])) +
                 # Prioritize keeping your own pieces alive that are more powerful on attack (Firewall and Program)
-                    (5 * (defender_counts[UnitType.Firewall] + 5 * defender_counts[UnitType.Program])) -
+                    (3 * (defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program])) -
                 # Always prioritize the AI since it's the game decider
                     (9999 * defender_counts[UnitType.AI])
             )
         return e1
 
+
+    # def get_heuristics_e2(self) -> int:
+    #     """Calculate e2 heuristic (more defensive)"""
+    #     player_unit_counts = {player: defaultdict(int) for player in Player}
+    # 
+    #     for player in Player:
+    #         for coord, unit in self.player_units(player):
+    #
+    #     attacker_counts = player_unit_counts[Player.Attacker]
+    #     defender_counts = player_unit_counts[Player.Defender]
+    #
+    #
+    #     e2:int
 
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
