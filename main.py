@@ -668,8 +668,8 @@ class Game:
 
         # TODO: set other heuristics here (e1 => aggressive play, e2 => defensive play???)
         initial_heuristic = self.get_heuristic_e0()
-        # initial_heuristic = self.get_heuristic_e1()
-        # initial_heuristic = self.get_heuristic_e2()
+        initial_heuristic_1 = self.get_heuristic_e1()
+        initial_heuristic_2 = self.get_heuristic_e2()
 
         # Optimizing for MAX player
         if initial_heuristic > 0:
@@ -747,7 +747,7 @@ class Game:
                     (6 * (attacker_counts[UnitType.Tech] + 6 * attacker_counts[UnitType.Virus])) +
                 # Prioritize keeping your own pieces alive that are more powerful on attack (Firewall and Program)
                     (3 * (attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program])) -
-                # Always prioritize the AI since it's the game decider
+                # Prioritize the AI since it's the game decider
                     (9999 * attacker_counts[UnitType.AI])
             )
         else:
@@ -756,24 +756,44 @@ class Game:
                     (6 * (defender_counts[UnitType.Tech] + 6 * defender_counts[UnitType.Virus])) +
                 # Prioritize keeping your own pieces alive that are more powerful on attack (Firewall and Program)
                     (3 * (defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program])) -
-                # Always prioritize the AI since it's the game decider
+                # Prioritize the AI since it's the game decider
                     (9999 * defender_counts[UnitType.AI])
             )
         return e1
 
 
-    # def get_heuristics_e2(self) -> int:
-    #     """Calculate e2 heuristic (more defensive)"""
-    #     player_unit_counts = {player: defaultdict(int) for player in Player}
-    # 
-    #     for player in Player:
-    #         for coord, unit in self.player_units(player):
-    #
-    #     attacker_counts = player_unit_counts[Player.Attacker]
-    #     defender_counts = player_unit_counts[Player.Defender]
-    #
-    #
-    #     e2:int
+    def get_heuristic_e2(self) -> int:
+        # Needs to be further discussed.
+        """Calculate e2 heuristic (more defensive)"""
+        player_unit_counts = {player: defaultdict(int) for player in Player}
+
+        for player in Player:
+            for coord, unit in self.player_units(player):
+                player_unit_counts[player][unit.type] += 1
+
+        attacker_counts = player_unit_counts[Player.Attacker]
+        defender_counts = player_unit_counts[Player.Defender]
+
+
+        e2:int
+        if self._attacker_has_ai:
+            e2 = (
+                    (6 * defender_counts[UnitType.Firewall] + 6 * defender_counts[UnitType.Program] +
+                     4 * defender_counts[UnitType.Tech] + 4 * defender_counts[UnitType.Virus]) -
+                    (5 * attacker_counts[UnitType.Tech] + 5 * attacker_counts[UnitType.Virus] +
+                     3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program]) -
+                    (9999 * attacker_counts[UnitType.AI])
+            )
+        else:
+
+            e2 = (
+                    (6 * attacker_counts[UnitType.Tech] + 6 * attacker_counts[UnitType.Virus] +
+                     4 * attacker_counts[UnitType.Firewall] + 4 * attacker_counts[UnitType.Program]) -
+                    (5 * defender_counts[UnitType.Tech] + 5 * defender_counts[UnitType.Virus] +
+                     3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program]) -
+                    (9999 * defender_counts[UnitType.AI])
+            )
+            return e2
 
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
