@@ -649,7 +649,7 @@ class Game:
         else:
             return 0, None, 0
 
-    def minimax(self, depth: int, maximizing_player: bool) -> Tuple[int, CoordPair | None]:
+    def minimax(self, depth: int, alpha, beta, maximizing_player: bool) -> Tuple[int, CoordPair | None]:
         """Minimax algorithm implementation"""
         moves = self.move_candidates()
         # verify if random.choice is legit
@@ -665,21 +665,29 @@ class Game:
                 # self.previous_game_state.append(previous)
                 # previous.perform_move(move)
                 self.perform_move(move)
-                current_score = self.minimax(depth - 1, False)[0]
+                current_score = self.minimax(depth - 1, alpha, beta, False)[0]
                 self.undo_move()
                 if current_score > max_score:
                     max_score = current_score
                     best_move = move
+                if self.options.alpha_beta is True:
+                    alpha = max(alpha, current_score)
+                    if beta <= alpha:
+                        break
             return max_score, best_move
         else:
             min_score = MAX_HEURISTIC_SCORE
             for move in moves:
                 self.perform_move(move)
-                current_score = self.minimax(depth - 1, True)[0]
+                current_score = self.minimax(depth - 1, alpha, beta, False)[0]
                 self.undo_move()
                 if current_score < min_score:
                     min_score = current_score
                     best_move = move
+                if self.options.alpha_beta is True:
+                    beta = min(beta, current_score)
+                    if beta <= alpha:
+                        break
             return min_score, best_move
 
     def suggest_move(self) -> CoordPair | None:
