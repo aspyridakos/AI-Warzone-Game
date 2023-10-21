@@ -243,6 +243,7 @@ class Options:
     max_turns: int | None = 100
     randomize_moves: bool = True
     broker: str | None = None
+    heuristic: str | None = "e0"
 
 
 ##############################################################################################################
@@ -656,8 +657,7 @@ class Game:
         best_move = random.choice(list(moves))
 
         if depth == 0 or self.is_finished() or self.time_is_up(start_time):
-            # TODO: not sure here if it should return None or best_move???
-            return self.get_heuristic_e0(), None
+            return self.get_heuristic(), None
 
         if maximizing_player:
             max_score = MIN_HEURISTIC_SCORE
@@ -703,7 +703,7 @@ class Game:
         board_copy = self.clone()
 
         # TODO: set other heuristics here (e1 => aggressive play, e2 => defensive play???)
-        initial_heuristic = self.get_heuristic_e0()
+        initial_heuristic = self.get_heuristic()
 
         # # Optimizing for MAX player
         # if initial_heuristic > 0:
@@ -717,8 +717,10 @@ class Game:
         #     avg_depth = int((self.options.max_depth + self.options.min_depth) / 2)
         #     suggested_move = board_copy.minimax(avg_depth, MIN_HEURISTIC_SCORE, MAX_HEURISTIC_SCORE, True)
 
-        (score, move) = board_copy.minimax(self.options.max_depth, MIN_HEURISTIC_SCORE, MAX_HEURISTIC_SCORE, True,
-                                           start_time)
+        is_attacker = self.next_player == Player.Attacker  # maximizing player is always the attacker
+
+        (score, move) = board_copy.minimax(self.options.max_depth, MIN_HEURISTIC_SCORE, MAX_HEURISTIC_SCORE,
+                                           is_attacker, start_time)
 
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
 
@@ -734,7 +736,7 @@ class Game:
         print(f"Elapsed time: {elapsed_seconds:0.1f}s")
         return move
 
-    def get_heuristic_e0(self) -> int:
+    def get_heuristic(self) -> int:
         """Calculate e0 heuristic"""
         player_unit_counts = {player: defaultdict(int) for player in Player}
 
@@ -745,22 +747,19 @@ class Game:
         attacker_counts = player_unit_counts[Player.Attacker]
         defender_counts = player_unit_counts[Player.Defender]
 
-        e0: int
-        if self._attacker_has_ai:
-            e0 = ((3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
+        # Temp heuristic initialization
+        heuristic = 0
+
+        if self.options.heuristic == "e0":
+            print("heuristic?")
+            heuristic = ((3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
                    3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
                    9999 * attacker_counts[UnitType.AI]) -
                   (3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
                    3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
                    9999 * defender_counts[UnitType.AI]))
-        else:
-            e0 = (((3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
-                    3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
-                    9999 * defender_counts[UnitType.AI]))
-                  - (3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
-                     3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
-                     9999 * attacker_counts[UnitType.AI]))
-        return e0
+
+        return heuristic
 
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
@@ -831,10 +830,10 @@ def main():
     # Parse the game type and set the descriptive string accordingly
     if args.game_type == "attacker":
         game_type = GameType.AttackerVsComp
-        play_mode = "player 1 = AI & player 2 = H"
+        play_mode = "player 1 = H & player 2 = AI"
     elif args.game_type == "defender":
         game_type = GameType.CompVsDefender
-        play_mode = "player 1 = H & player 2 = AI"
+        play_mode = "player 1 = AI & player 2 = H"
     elif args.game_type == "manual":
         game_type = GameType.AttackerVsDefender
         play_mode = "player 1 = H & player 2 = H"
@@ -855,6 +854,8 @@ def main():
         options.broker = args.broker
     if args.max_turns is not None:
         options.max_turns = args.max_turns
+    if args.heuristic is not None:
+        options.heuristic = args.heuristic
 
     # Create a new game
     game = Game(options=options)
