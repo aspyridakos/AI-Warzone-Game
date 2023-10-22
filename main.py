@@ -255,6 +255,7 @@ class Stats:
     evaluations_per_depth: dict[int, int] = field(default_factory=dict)
     total_evals: int = 0
     total_seconds: float = 0.0
+    branching_factor: int = 0
 
 
 ##############################################################################################################
@@ -677,6 +678,11 @@ class Game:
             return self.get_heuristic(), None
 
         moves = list(self.move_candidates())
+        if depth > 0:
+            self.stats.branching_factor = (self.stats.branching_factor*(depth-1) + len(moves))/depth
+        else:
+            self.stats.branching_factor = len(moves)
+
         best_move = None
         # OR best_move = random.choice(moves)
 
@@ -734,6 +740,7 @@ class Game:
         for k in sorted(self.stats.evaluations_per_depth.keys()):
             print(f"{k}:{self.stats.evaluations_per_depth[k]} ", end='')
         print()
+        print(f"Average branching factor: {self.stats.branching_factor:0.1f}")
         total_evals = sum(self.stats.evaluations_per_depth.values())
         if self.stats.total_seconds > 0:
             print(f"Eval perf.: {total_evals / self.stats.total_seconds / 1000:0.1f}k/s")
