@@ -742,19 +742,6 @@ class Game:
 
     def get_heuristic(self) -> int:
         """Calculate e0 heuristic"""
-        # for player in Player:
-        #     for coord, unit in self.player_units(player):
-        #         player_unit_counts[player][unit.type] += 1
-        #
-        #         # AI health is weighed way more than other pieces
-        #         if unit.type == 0:
-        #             player_total_health[player] += 9999 * unit.health
-        #         else:
-        #             player_total_health[player] += 3 * unit.health
-        #
-        # attacker_counts = player_unit_counts[Player.Attacker]
-        # defender_counts = player_unit_counts[Player.Defender]
-
         # Temp heuristic score initialization
         heuristic = 0
 
@@ -793,13 +780,10 @@ class Game:
                           3 * defender_weighted_counts[UnitType.Firewall] + 3 * defender_weighted_counts[UnitType.Program] +
                           9999 * defender_weighted_counts[UnitType.AI]))
 
-            # FIXME: gets stuck in a loop of repeating the same moves
-            # heuristic = (player_total_health[Player.Attacker] - player_total_health[Player.Defender])
-
         #  Considering distance from enemy AI and unit count for heuristic
         if self.options.heuristic == "e2":
             player_count_distance = {player: defaultdict(float) for player in Player}
-            enemy_ai_coords = {Player.Attacker: Coord, Player.Defender: Coord}
+            enemy_ai_coords = {Player.Attacker: [0, 0], Player.Defender: [0, 0]}
 
             dimension = self.options.dim
             max_distance = math.dist([0, 0], [dimension, dimension])
@@ -807,18 +791,18 @@ class Game:
             # Get enemy AI coordinates
             for coord, unit in self.player_units(Player.Attacker):
                 if unit.type == 0:
-                    enemy_ai_coords[Player.Defender] = coord
+                    enemy_ai_coords[Player.Defender][0] = coord.row
+                    enemy_ai_coords[Player.Defender][1] = coord.col
 
             for coord, unit in self.player_units(Player.Defender):
                 if unit.type == 0:
-                    enemy_ai_coords[Player.Attacker] = coord
+                    enemy_ai_coords[Player.Attacker][0] = coord.row
+                    enemy_ai_coords[Player.Attacker][1] = coord.col
 
             for player in Player:
                 for coord, unit in self.player_units(player):
-                    print([coord.row, coord.col])
-                    print([enemy_ai_coords[player].row, enemy_ai_coords[player].col])
                     distance = math.dist([coord.row, coord.col],
-                                         [enemy_ai_coords[player].row, enemy_ai_coords[player].col])
+                                         [enemy_ai_coords[player][0], enemy_ai_coords[player][1]])
                     player_count_distance[player][unit.type] += 1 - (distance/max_distance)
 
             attacker_counts = player_count_distance[Player.Attacker]
