@@ -1,6 +1,7 @@
 from __future__ import annotations
 import argparse
 import copy
+import math
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
@@ -689,10 +690,10 @@ class Game:
                 if current_score > max_score:
                     max_score = current_score
                     best_move = move
-                # if self.options.alpha_beta is True:
-                #     alpha = max(alpha, current_score)
-                #     if beta <= alpha:
-                #         break
+                if self.options.alpha_beta:
+                    alpha = max(alpha, current_score)
+                    if beta <= alpha:
+                        break
             return max_score, best_move
         else:
             min_score = MAX_HEURISTIC_SCORE
@@ -701,16 +702,13 @@ class Game:
                 board_copy.perform_move(move)
                 board_copy.next_turn()
                 current_score = board_copy.minimax(depth + 1, alpha, beta, True, start_time)[0]
-                # self.perform_move(move)
-                # current_score = self.minimax(depth + 1, alpha, beta, True, start_time)[0]
-                # self.undo_move()
                 if current_score < min_score:
                     min_score = current_score
                     best_move = move
-                # if self.options.alpha_beta is True:
-                #     beta = min(beta, current_score)
-                #     if beta <= alpha:
-                #         break
+                if self.options.alpha_beta:
+                    beta = min(beta, current_score)
+                    if beta <= alpha:
+                        break
             return min_score, best_move
 
     def time_is_up(self, start_time):
@@ -721,7 +719,7 @@ class Game:
         return elapsed >= (self.options.max_time - time_limit_buffer)
 
     def suggest_move(self) -> Tuple[CoordPair | None, float, int]:
-        """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
+        """Suggest the next move using minimax alpha beta."""
         start_time = datetime.now()
 
         is_attacker = self.next_player == Player.Attacker  # maximizing player is always the attacker
@@ -745,10 +743,18 @@ class Game:
     def get_heuristic(self) -> int:
         """Calculate e0 heuristic"""
         player_unit_counts = {player: defaultdict(int) for player in Player}
+        player_total_health = {Player.Attacker: 0, Player.Defender: 0}
+        distance_to_enemy_ai = {Player.Attacker: 0, Player.Defender: 0}
 
         for player in Player:
             for coord, unit in self.player_units(player):
                 player_unit_counts[player][unit.type] += 1
+
+                # AI health is weighed way more than other pieces
+                if unit.type == 0:
+                    player_total_health[player] += 9999 * unit.health
+                else:
+                    player_total_health[player] += 3 * unit.health
 
         attacker_counts = player_unit_counts[Player.Attacker]
         defender_counts = player_unit_counts[Player.Defender]
@@ -763,6 +769,31 @@ class Game:
                          (3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
                           3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
                           9999 * defender_counts[UnitType.AI]))
+
+        if self.options.heuristic == "e1":
+            # FIXME: gets stuck in a loop of repeating the same moves
+            # heuristic = (player_total_health[Player.Attacker] - player_total_health[Player.Defender])
+            ai_coords = {Player.Attacker: Coord, Player.Defender: Coord}
+
+            for player in Player:
+                for coord, unit in self.player_units(player):
+                    if unit.type == 0:
+                        ai_coords[player] = coord
+
+            for player in Player:
+                for coord, unit in self.player_units(player):
+                    distance = math.dist([coord.row, coord.col],
+                                         [ai_coords[player.next()].row, ai_coords[player.next()].col])
+                    distance_to_enemy_ai[player] += distance
+
+        if self.options.heuristic == "e2":
+            # FIXME: should net to zero at start of game
+            heuristic = (
+                    (6 * defender_counts[UnitType.Firewall] + 6 * defender_counts[UnitType.Program] +
+                     4 * defender_counts[UnitType.Tech] + 4 * defender_counts[UnitType.Virus]) -
+                    (5 * attacker_counts[UnitType.Tech] + 5 * attacker_counts[UnitType.Virus] +
+                     3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program]) -
+                    (9999 * attacker_counts[UnitType.AI]))
 
         return heuristic
 
@@ -824,7 +855,7 @@ def main():
         prog='ai_wargame',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--max_turns', type=int, help='maximum number of turns')
-    parser.add_argument('--alpha_beta', type=bool, help='alpha-beta heuristic on')
+    parser.add_argument('--alpha_beta', action="store_true", help='alpha-beta heuristic on')
     parser.add_argument('--max_depth', type=int, help='maximum search depth')
     parser.add_argument('--max_time', type=float, help='maximum search time')
     parser.add_argument('--game_type', type=str, default="manual", help='game type: auto|attacker|defender|manual')
@@ -861,6 +892,8 @@ def main():
         options.max_turns = args.max_turns
     if args.heuristic is not None:
         options.heuristic = args.heuristic
+    if args.alpha_beta is not None:
+        options.alpha_beta = args.alpha_beta
 
     # Create a new game
     game = Game(options=options)
