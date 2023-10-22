@@ -1,0 +1,25 @@
+----------------
+GAME PARAMETERS: 
+Turn timeout: 5.0 seconds
+Max turns: None
+Play mode: player 1 = AI & player 2 = AI
+Alpha-beta: on
+Heuristic: e2
+----------------
+
+GAME START
+
+Next player: Attacker
+Turns played: 0
+
+    0   1   2   3   4  
+A: dA9 dT9 dF9  .   .  
+B: dT9 dP9  .   .   .  
+C: dF9  .   .   .  aP9 
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+
+----------------------
+Turn # 1/100
+Player: Attacker
+
