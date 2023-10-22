@@ -252,6 +252,7 @@ class Options:
 class Stats:
     """Representation of the global game statistics."""
     evaluations_per_depth: dict[int, int] = field(default_factory=dict)
+    total_evals: int = 0
     total_seconds: float = 0.0
 
 
@@ -354,14 +355,16 @@ class Game:
                 # Can move freely in attack or defense, and in combat
                 # After check, returns statement that move is valid
                 if unit_type in [1, 2]:
-                    print("valid move for Virus and Tech units")
+                    # TODO: remove comment at end
+                    # print("valid move for Virus and Tech units")
                     self.move_id = 0
                     return True
 
                 # Check if engaged in combat and AI, Program or Firewall
                 # Cannot move in this case
                 if self.engaged_in_combat(coords.src):
-                    print("invalid move for AI, Program or Firewall units engaged in combat")
+                    # TODO: remove comment at end
+                    # print("invalid move for AI, Program or Firewall units engaged in combat")
                     return False
 
                 # Get player type
@@ -377,7 +380,8 @@ class Game:
                 # Can only move up or left
                 if (player_type is Player.Attacker.value
                         and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]):
-                    print("valid move for AI, Program or Firewall defender units (up or left)")
+                    # TODO: remove comment at end
+                    # print("valid move for AI, Program or Firewall defender units (up or left)")
                     self.move_id = 0
                     return True
 
@@ -385,11 +389,13 @@ class Game:
                 # Can only move down or right
                 elif (player_type is Player.Defender.value
                       and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]):
-                    print("valid move for AI, Program or Firewall defender units (down or right)")
+                    # TODO: remove comment at end
+                    # print("valid move for AI, Program or Firewall defender units (down or right)")
                     self.move_id = 0
                     return True
                 else:
-                    print("invalid more for AI, Program or Firewall while not engaged in combat")
+                    # TODO: remove comment at end
+                    # print("invalid more for AI, Program or Firewall while not engaged in combat")
                     return False
 
             # Checks if attacking or repairing piece
@@ -399,25 +405,30 @@ class Game:
                     health_delta = self.get(coords.src).repair_amount(unit)
                     # Checks if valid repair
                     if health_delta == 0:
-                        print("invalid repair")
+                        # TODO: remove comment at end
+                        # print("invalid repair")
                         return False
                     else:
                         self.move_id = 1
-                        print("valid repair")
+                        # TODO: remove comment at end
+                        # print("valid repair")
                         return True
                 # If opposing units (attempting attack)
                 else:
                     self.move_id = 2
-                    print("valid attack")
+                    # TODO: remove comment at end
+                    # print("valid attack")
                     return True
         # Checks if src and dst coords are the same (initiating self-destruct)
         elif coords.src == coords.dst:
             self.move_id = 3
-            print("valid self-destruction")
+            # TODO: remove comment at end
+            # print("valid self-destruction")
             return True
         # Checks if trying to move to non-adjacent space and not self-destructing
         else:
-            print("invalid move, non-adjacent space selected")
+            # TODO: remove comment at end
+            # print("invalid move, non-adjacent space selected")
             return False
 
     def engaged_in_combat(self, coord: Coord) -> bool:
@@ -434,8 +445,8 @@ class Game:
     def perform_move(self, coords: CoordPair) -> Tuple[bool, str]:
         """Validate and perform a move expressed as a CoordPair."""
 
-        previous = self.clone()
-        self.previous_game_state.append(previous)
+        # previous = self.clone()
+        # self.previous_game_state.append(previous)
 
         if self.is_valid_move(coords):
             match self.move_id:
@@ -598,12 +609,15 @@ class Game:
 
     def computer_turn(self) -> CoordPair | None:
         """Computer plays a move."""
-        mv = self.suggest_move()
+        mv, time_for_action, score = self.suggest_move()
         if mv is not None:
             (success, result) = self.perform_move(mv)
             if success:
                 print(f"Computer {self.next_player.name}: ", end='')
                 print(result)
+                append_to_file(result)
+                append_to_file(f"time for this action: {time_for_action:0.1f} sec")
+                append_to_file(f"heuristic score: {score}")
                 self.next_turn()
         return mv
 
@@ -652,40 +666,51 @@ class Game:
 
     def minimax(self, depth: int, alpha, beta, maximizing_player: bool, start_time) -> Tuple[int, CoordPair | None]:
         """Minimax algorithm implementation"""
-        moves = self.move_candidates()
-        # TODO: verify if random.choice is legit
-        best_move = random.choice(list(moves))
 
-        if depth == 0 or self.is_finished() or self.time_is_up(start_time):
+        if depth not in self.stats.evaluations_per_depth:
+            self.stats.evaluations_per_depth[depth] = 0
+
+        if depth == self.options.max_depth or self.is_finished() or self.time_is_up(start_time):
+            self.stats.total_evals += 1
+            self.stats.evaluations_per_depth[depth] += 1
             return self.get_heuristic(), None
+
+        moves = list(self.move_candidates())
+        best_move = None
+        # OR best_move = random.choice(moves)
 
         if maximizing_player:
             max_score = MIN_HEURISTIC_SCORE
             for move in moves:
-                self.perform_move(move)
-                current_score = self.minimax(depth - 1, alpha, beta, False, start_time)[0]
-                self.undo_move()
+                board_copy = self.clone()
+                board_copy.perform_move(move)
+                board_copy.next_turn()
+                current_score = board_copy.minimax(depth + 1, alpha, beta, False, start_time)[0]
                 if current_score > max_score:
                     max_score = current_score
                     best_move = move
-                if self.options.alpha_beta is True:
-                    alpha = max(alpha, current_score)
-                    if beta <= alpha:
-                        break
+                # if self.options.alpha_beta is True:
+                #     alpha = max(alpha, current_score)
+                #     if beta <= alpha:
+                #         break
             return max_score, best_move
         else:
             min_score = MAX_HEURISTIC_SCORE
             for move in moves:
-                self.perform_move(move)
-                current_score = self.minimax(depth - 1, alpha, beta, True, start_time)[0]
-                self.undo_move()
+                board_copy = self.clone()
+                board_copy.perform_move(move)
+                board_copy.next_turn()
+                current_score = board_copy.minimax(depth + 1, alpha, beta, True, start_time)[0]
+                # self.perform_move(move)
+                # current_score = self.minimax(depth + 1, alpha, beta, True, start_time)[0]
+                # self.undo_move()
                 if current_score < min_score:
                     min_score = current_score
                     best_move = move
-                if self.options.alpha_beta is True:
-                    beta = min(beta, current_score)
-                    if beta <= alpha:
-                        break
+                # if self.options.alpha_beta is True:
+                #     beta = min(beta, current_score)
+                #     if beta <= alpha:
+                #         break
             return min_score, best_move
 
     def time_is_up(self, start_time):
@@ -695,32 +720,13 @@ class Game:
         elapsed = (current_time - start_time).total_seconds()
         return elapsed >= (self.options.max_time - time_limit_buffer)
 
-    def suggest_move(self) -> CoordPair | None:
+    def suggest_move(self) -> Tuple[CoordPair | None, float, int]:
         """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
         start_time = datetime.now()
 
-        # Clone the board to test minimax options
-        board_copy = self.clone()
-
-        # TODO: set other heuristics here (e1 => aggressive play, e2 => defensive play???)
-        initial_heuristic = self.get_heuristic()
-
-        # # Optimizing for MAX player
-        # if initial_heuristic > 0:
-        #     suggested_move = board_copy.minimax(self.options.max_depth, True)
-        # # Optimizing for MIN player
-        # elif initial_heuristic < 0:
-        #     suggested_move = board_copy.minimax(self.options.min_depth, True)
-        # # Optimizing for AVERAGE player
-        # else:
-        #     # TODO: Optimize depth later
-        #     avg_depth = int((self.options.max_depth + self.options.min_depth) / 2)
-        #     suggested_move = board_copy.minimax(avg_depth, MIN_HEURISTIC_SCORE, MAX_HEURISTIC_SCORE, True)
-
         is_attacker = self.next_player == Player.Attacker  # maximizing player is always the attacker
 
-        (score, move) = board_copy.minimax(self.options.max_depth, MIN_HEURISTIC_SCORE, MAX_HEURISTIC_SCORE,
-                                           is_attacker, start_time)
+        (score, move) = self.minimax(0, MIN_HEURISTIC_SCORE, MAX_HEURISTIC_SCORE, is_attacker, start_time)
 
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
 
@@ -734,7 +740,7 @@ class Game:
         if self.stats.total_seconds > 0:
             print(f"Eval perf.: {total_evals / self.stats.total_seconds / 1000:0.1f}k/s")
         print(f"Elapsed time: {elapsed_seconds:0.1f}s")
-        return move
+        return move, elapsed_seconds, score
 
     def get_heuristic(self) -> int:
         """Calculate e0 heuristic"""
@@ -747,17 +753,16 @@ class Game:
         attacker_counts = player_unit_counts[Player.Attacker]
         defender_counts = player_unit_counts[Player.Defender]
 
-        # Temp heuristic initialization
+        # Temp heuristic score initialization
         heuristic = 0
 
         if self.options.heuristic == "e0":
-            print("heuristic?")
             heuristic = ((3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
-                   3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
-                   9999 * attacker_counts[UnitType.AI]) -
-                  (3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
-                   3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
-                   9999 * defender_counts[UnitType.AI]))
+                          3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
+                          9999 * attacker_counts[UnitType.AI]) -
+                         (3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
+                          3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
+                          9999 * defender_counts[UnitType.AI]))
 
         return heuristic
 
@@ -874,7 +879,8 @@ def main():
         f.write("GAME PARAMETERS: \nTurn timeout: {t} seconds\nMax turns: {m}\nPlay mode: {p}\n".format(
             t=args.max_time if args.max_time is not None else options.max_time, m=args.max_turns, p=play_mode))
         if args.game_type != "manual":
-            f.write("Alpha-beta: {a}\nHeuristic: {h}\n".format(a="on" if args.alpha_beta else "off", h=args.heuristic))
+            f.write("Alpha-beta: {a}\nHeuristic: {h}\n".format(a="on" if args.alpha_beta else "off", h=args.heuristic if
+            args.heuristic is not None else options.heuristic))
         f.write("----------------\n")
 
     # The main game loop
@@ -899,19 +905,24 @@ def main():
             game.human_turn()
             # Append new board configuration to output file
             if game.turns_played != 0:
-                # previous_board = game.previous_game_state.pop()
-                # append_to_file("previous game state: ")
-                # append_to_file(previous_board.board_only_to_string())
-                # append_to_file("current game state: ")
                 append_to_file(game.board_only_to_string())
                 append_to_file("----------------------")
         elif game.options.game_type == GameType.AttackerVsComp and game.next_player == Player.Attacker:
             game.human_turn()
+            if game.turns_played != 0:
+                append_to_file(game.board_only_to_string())
+                append_to_file("----------------------")
         elif game.options.game_type == GameType.CompVsDefender and game.next_player == Player.Defender:
             game.human_turn()
+            if game.turns_played != 0:
+                append_to_file(game.board_only_to_string())
+                append_to_file("----------------------")
         else:
             player = game.next_player
             move = game.computer_turn()
+            if game.turns_played != 0:
+                append_to_file(game.board_only_to_string())
+                append_to_file("----------------------")
             if move is not None:
                 game.post_move_to_broker(move)
             else:
