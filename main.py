@@ -742,27 +742,32 @@ class Game:
 
     def get_heuristic(self) -> int:
         """Calculate e0 heuristic"""
-        player_unit_counts = {player: defaultdict(int) for player in Player}
-        player_total_health = {Player.Attacker: 0, Player.Defender: 0}
-        distance_to_enemy_ai = {Player.Attacker: 0, Player.Defender: 0}
-
-        for player in Player:
-            for coord, unit in self.player_units(player):
-                player_unit_counts[player][unit.type] += 1
-
-                # AI health is weighed way more than other pieces
-                if unit.type == 0:
-                    player_total_health[player] += 9999 * unit.health
-                else:
-                    player_total_health[player] += 3 * unit.health
-
-        attacker_counts = player_unit_counts[Player.Attacker]
-        defender_counts = player_unit_counts[Player.Defender]
+        # for player in Player:
+        #     for coord, unit in self.player_units(player):
+        #         player_unit_counts[player][unit.type] += 1
+        #
+        #         # AI health is weighed way more than other pieces
+        #         if unit.type == 0:
+        #             player_total_health[player] += 9999 * unit.health
+        #         else:
+        #             player_total_health[player] += 3 * unit.health
+        #
+        # attacker_counts = player_unit_counts[Player.Attacker]
+        # defender_counts = player_unit_counts[Player.Defender]
 
         # Temp heuristic score initialization
         heuristic = 0
 
         if self.options.heuristic == "e0":
+            player_unit_counts = {player: defaultdict(int) for player in Player}
+
+            for player in Player:
+                for coord, unit in self.player_units(player):
+                    player_unit_counts[player][unit.type] += 1
+
+            attacker_counts = player_unit_counts[Player.Attacker]
+            defender_counts = player_unit_counts[Player.Defender]
+
             heuristic = ((3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
                           3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
                           9999 * attacker_counts[UnitType.AI]) -
@@ -770,30 +775,61 @@ class Game:
                           3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
                           9999 * defender_counts[UnitType.AI]))
 
+        #  Considering health and unit count for heuristic
         if self.options.heuristic == "e1":
+            player_total_health = {player: defaultdict(float) for player in Player}
+
+            for player in Player:
+                for coord, unit in self.player_units(player):
+                    player_total_health[player][unit.type] += unit.health/9
+
+            attacker_weighted_counts = player_total_health[Player.Attacker]
+            defender_weighted_counts = player_total_health[Player.Defender]
+
+            heuristic = ((3 * attacker_weighted_counts[UnitType.Virus] + 3 * attacker_weighted_counts[UnitType.Tech] +
+                          3 * attacker_weighted_counts[UnitType.Firewall] + 3 * attacker_weighted_counts[UnitType.Program] +
+                          9999 * attacker_weighted_counts[UnitType.AI]) -
+                         (3 * defender_weighted_counts[UnitType.Virus] + 3 * defender_weighted_counts[UnitType.Tech] +
+                          3 * defender_weighted_counts[UnitType.Firewall] + 3 * defender_weighted_counts[UnitType.Program] +
+                          9999 * defender_weighted_counts[UnitType.AI]))
+
             # FIXME: gets stuck in a loop of repeating the same moves
             # heuristic = (player_total_health[Player.Attacker] - player_total_health[Player.Defender])
-            ai_coords = {Player.Attacker: Coord, Player.Defender: Coord}
 
-            for player in Player:
-                for coord, unit in self.player_units(player):
-                    if unit.type == 0:
-                        ai_coords[player] = coord
-
-            for player in Player:
-                for coord, unit in self.player_units(player):
-                    distance = math.dist([coord.row, coord.col],
-                                         [ai_coords[player.next()].row, ai_coords[player.next()].col])
-                    distance_to_enemy_ai[player] += distance
-
+        #  Considering distance from enemy AI and unit count for heuristic
         if self.options.heuristic == "e2":
-            # FIXME: should net to zero at start of game
-            heuristic = (
-                    (6 * defender_counts[UnitType.Firewall] + 6 * defender_counts[UnitType.Program] +
-                     4 * defender_counts[UnitType.Tech] + 4 * defender_counts[UnitType.Virus]) -
-                    (5 * attacker_counts[UnitType.Tech] + 5 * attacker_counts[UnitType.Virus] +
-                     3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program]) -
-                    (9999 * attacker_counts[UnitType.AI]))
+            player_count_distance = {player: defaultdict(float) for player in Player}
+            enemy_ai_coords = {Player.Attacker: Coord, Player.Defender: Coord}
+
+            dimension = self.options.dim
+            max_distance = math.dist([0, 0], [dimension, dimension])
+
+            # Get enemy AI coordinates
+            for coord, unit in self.player_units(Player.Attacker):
+                if unit.type == 0:
+                    enemy_ai_coords[Player.Defender] = coord
+
+            for coord, unit in self.player_units(Player.Defender):
+                if unit.type == 0:
+                    enemy_ai_coords[Player.Attacker] = coord
+
+            for player in Player:
+                for coord, unit in self.player_units(player):
+                    print([coord.row, coord.col])
+                    print([enemy_ai_coords[player].row, enemy_ai_coords[player].col])
+                    distance = math.dist([coord.row, coord.col],
+                                         [enemy_ai_coords[player].row, enemy_ai_coords[player].col])
+                    player_count_distance[player][unit.type] += 1 - (distance/max_distance)
+
+            attacker_counts = player_count_distance[Player.Attacker]
+            defender_counts = player_count_distance[Player.Defender]
+
+            heuristic = ((3 * attacker_counts[UnitType.Virus] + 3 * attacker_counts[UnitType.Tech] +
+                          3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
+                          9999 * attacker_counts[UnitType.AI]) -
+                         (3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] +
+                          3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
+                          9999 * defender_counts[UnitType.AI]))
 
         return heuristic
 
