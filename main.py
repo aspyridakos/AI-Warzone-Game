@@ -26,6 +26,7 @@ def append_to_file(result):
 
 
 def format_stats(num):
+    """Format a number with abbreviation"""
     if num >= 1000000:
         if not num % 1000000:
             return f'{num // 1000000}M'
@@ -378,16 +379,14 @@ class Game:
                 # Can move freely in attack or defense, and in combat
                 # After check, returns statement that move is valid
                 if unit_type in [1, 2]:
-                    # TODO: remove comment at end
-                    # print("valid move for Virus and Tech units")
+                    # valid move for Virus and Tech units
                     self.move_id = 0
                     return True
 
                 # Check if engaged in combat and AI, Program or Firewall
                 # Cannot move in this case
                 if self.engaged_in_combat(coords.src):
-                    # TODO: remove comment at end
-                    # print("invalid move for AI, Program or Firewall units engaged in combat")
+                    # invalid move for AI, Program or Firewall units engaged in combat
                     return False
 
                 # Get player type
@@ -403,8 +402,7 @@ class Game:
                 # Can only move up or left
                 if (player_type is Player.Attacker.value
                         and coords.dst.to_string() in [top_adjacent_coord, left_adjacent_coord]):
-                    # TODO: remove comment at end
-                    # print("valid move for AI, Program or Firewall defender units (up or left)")
+                    # valid move for AI, Program or Firewall defender units (up or left)
                     self.move_id = 0
                     return True
 
@@ -412,13 +410,11 @@ class Game:
                 # Can only move down or right
                 elif (player_type is Player.Defender.value
                       and coords.dst.to_string() in [bottom_adjacent_coord, right_adjacent_coord]):
-                    # TODO: remove comment at end
-                    # print("valid move for AI, Program or Firewall defender units (down or right)")
+                    # valid move for AI, Program or Firewall defender units (down or right)
                     self.move_id = 0
                     return True
                 else:
-                    # TODO: remove comment at end
-                    # print("invalid more for AI, Program or Firewall while not engaged in combat")
+                    # invalid more for AI, Program or Firewall while not engaged in combat
                     return False
 
             # Checks if attacking or repairing piece
@@ -428,30 +424,25 @@ class Game:
                     health_delta = self.get(coords.src).repair_amount(unit)
                     # Checks if valid repair
                     if health_delta == 0:
-                        # TODO: remove comment at end
-                        # print("invalid repair")
+                        # invalid repair
                         return False
                     else:
+                        # valid repair
                         self.move_id = 1
-                        # TODO: remove comment at end
-                        # print("valid repair")
                         return True
                 # If opposing units (attempting attack)
                 else:
+                    # valid attack
                     self.move_id = 2
-                    # TODO: remove comment at end
-                    # print("valid attack")
                     return True
         # Checks if src and dst coords are the same (initiating self-destruct)
         elif coords.src == coords.dst:
+            # valid self-destruction
             self.move_id = 3
-            # TODO: remove comment at end
-            # print("valid self-destruction")
             return True
         # Checks if trying to move to non-adjacent space and not self-destructing
         else:
-            # TODO: remove comment at end
-            # print("invalid move, non-adjacent space selected")
+            # invalid move, non-adjacent space selected
             return False
 
     def engaged_in_combat(self, coord: Coord) -> bool:
@@ -763,7 +754,7 @@ class Game:
         print(f"Heuristic score: {score}")
         print(f"Evals per depth: ", end='')
         for k in sorted(self.stats.evaluations_per_depth.keys()):
-            print(f"{k}:{self.stats.evaluations_per_depth[k]} ", end='')
+            print(f"{k}:{format_stats(self.stats.evaluations_per_depth[k])} ", end='')
         print()
         print(f"Average branching factor: {self.stats.branching_factor:0.1f}")
         total_evals = sum(self.stats.evaluations_per_depth.values())
@@ -794,7 +785,7 @@ class Game:
                           3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
                           9999 * defender_counts[UnitType.AI]))
 
-        #  Considering health, unit count, and importance of units for heuristic
+        #  Considering health and importance of units for heuristic
         if self.options.heuristic == "e1":
             player_total_health = {player: defaultdict(float) for player in Player}
             ai_positions = {player: None for player in Player}
@@ -832,16 +823,27 @@ class Game:
             heuristic = (sum(attacker_final_weights[unit_type] for unit_type in UnitType) -
                          sum(defender_final_weights[unit_type] for unit_type in UnitType))
 
-        #  Considering distance from enemy AI and unit count for heuristic
+        #  Adding offensive/defensive strategy by considering distance and total player health
         if self.options.heuristic == "e2":
-
+            attacker_health = 0
+            defender_health = 0
             player_unit_counts = {player: defaultdict(int) for player in Player}
             ai_positions = {player: None for player in Player}
 
+            # Count unit types for each player
             for player in Player:
                 for coord, unit in self.player_units(player):
                     player_unit_counts[player][unit.type] += 1
 
+            # Calculate total health for each player
+            for player in Player:
+                for coord, unit in self.player_units(player):
+                    if player is Player.Attacker:
+                        attacker_health += unit.health
+                    else:
+                        defender_health += unit.health
+
+            # Get count of each player units
             attacker_counts = player_unit_counts[Player.Attacker]
             defender_counts = player_unit_counts[Player.Defender]
 
@@ -851,43 +853,47 @@ class Game:
                     if unit.type == UnitType.AI:
                         ai_positions[player] = coord
 
+            # Initialize strategic bonus
             threat = 0
             safety_firewall = 0
             protection = 0
             safety_tech = 0
 
+            max_distance = math.sqrt(self.options.dim ** 2 + self.options.dim ** 2)
+
             if self.next_player == Player.Attacker:
                 for coord, unit in self.player_units(Player.Attacker):
+                    # Threat bonus if virus is close to defender AI
                     if unit.type == UnitType.Virus and ai_positions[Player.Defender]:
                         distance = math.dist([coord.row, coord.col],
                                              [ai_positions[Player.Defender].row, ai_positions[Player.Defender].col])
-                        max_distance = math.sqrt(self.options.dim ** 2 + self.options.dim ** 2)
-                        threat = (max_distance - distance)
+                        threat = (max_distance - distance) * 2
             else:
                 for coord, unit in self.player_units(Player.Defender):
+                    # Protection bonus if program is close to attacker AI
                     if unit.type == UnitType.Program and ai_positions[Player.Attacker]:
                         distance = math.dist([coord.row, coord.col],
                                              [ai_positions[Player.Attacker].row, ai_positions[Player.Attacker].col])
-                        max_distance = math.sqrt(self.options.dim ** 2 + self.options.dim ** 2)
-                        protection = max_distance - distance
+                        protection = (max_distance - distance) * 2
+                    # Safety bonus if firewall is close to defender AI
                     if unit.type == UnitType.Firewall and ai_positions[Player.Defender]:
                         distance = math.dist([coord.row, coord.col],
                                              [ai_positions[Player.Defender].row, ai_positions[Player.Defender].col])
-                        max_distance = math.sqrt(self.options.dim ** 2 + self.options.dim ** 2)
-                        safety = abs(distance - max_distance)
+                        safety_firewall = abs(distance - max_distance) * 2
+                    # Safety bonus if tech is close to defender AI
                     if unit.type == UnitType.Tech and ai_positions[Player.Defender]:
                         distance = math.dist([coord.row, coord.col],
                                              [ai_positions[Player.Defender].row, ai_positions[Player.Defender].col])
                         max_distance = math.sqrt(self.options.dim ** 2 + self.options.dim ** 2)
-                        safety2 = abs(distance - max_distance)
+                        safety_tech = abs(distance - max_distance) * 2
 
-            heuristic = ((3 * attacker_counts[UnitType.Virus] * threat + 3 * attacker_counts[UnitType.Tech] +
-                          3 * attacker_counts[UnitType.Firewall] + 3 * attacker_counts[UnitType.Program] +
-                          9999 * attacker_counts[UnitType.AI]) -
-                         (3 * defender_counts[UnitType.Virus] + 3 * defender_counts[UnitType.Tech] * safety_tech +
-                          3 * defender_counts[UnitType.Firewall] * safety_firewall + 3 * defender_counts[
-                              UnitType.Program] *
-                          protection + 9999 * defender_counts[UnitType.AI]))
+            heuristic = (attacker_health * (attacker_counts[UnitType.Virus] + attacker_counts[UnitType.Tech] +
+                                            attacker_counts[UnitType.Firewall] + attacker_counts[UnitType.Program] +
+                                            9999 * attacker_counts[UnitType.AI] - protection) -
+                         (defender_health * (defender_counts[UnitType.Virus] + defender_counts[UnitType.Tech] *
+                                             safety_tech + defender_counts[UnitType.Firewall] * safety_firewall +
+                                             defender_counts[UnitType.Program] * protection + 9999 *
+                                             defender_counts[UnitType.AI]) - threat + safety_tech + safety_firewall))
         return heuristic
 
     def post_move_to_broker(self, move: CoordPair):
@@ -995,8 +1001,9 @@ def main():
     # With proper argument parameters to have written
     global OUTPUT_FILE
     OUTPUT_FILE = 'gameTrace-{b}-{t}-{m}.txt'.format(b=args.alpha_beta if args.alpha_beta is not None else "false",
-                                                     t=args.max_time if args.max_time is not None else options.max_time,
-                                                     m=args.max_turns)
+                                                     t=round(args.max_time) if args.max_time is not None else
+                                                     round(options.max_time), m=args.max_turns if args.max_turns is
+                                                     not None else options.max_turns)
 
     # write game parameters to output file
     # Opens the file and writes to it with the proper arguments needed
@@ -1029,7 +1036,6 @@ def main():
         append_to_file("Player: {p}\n".format(p=game.next_player.name))
         if game.options.game_type == GameType.AttackerVsDefender:
             game.human_turn()
-            # Append new board configuration to output file
             if game.turns_played != 0:
                 append_to_file(game.board_only_to_string())
         elif game.options.game_type == GameType.AttackerVsComp and game.next_player == Player.Attacker:
@@ -1054,16 +1060,16 @@ def main():
                 print("Computer doesn't know what to do!!!")
                 print("Game over")
                 exit(1)
-        append_to_file("** Cumulative Game Statistics **")
-        append_to_file("Cumulative evals: {b}".format(b=format_stats(game.stats.total_evals)))
-        cumulative_evals = ", ".join(f"{k}={format_stats(v)}" for k, v in game.stats.evaluations_per_depth.items())
-        append_to_file(f"Cumulative evals by depth: {cumulative_evals}")
-        # append_to_file("Cumulative evals by depth: {b}".format(b=game.stats.evaluations_per_depth))
-        percentage_evals_str = "Cumulative % evals by depth: " + ' '.join(
-            f"{depth}={count * 100 / game.stats.total_evals:.1f}%" for depth, count in
-            game.stats.evaluations_per_depth.items())
-        append_to_file("Cumulative % evals by depth: {b}".format(b=percentage_evals_str))
-        append_to_file("Average branching factor: {b}".format(b=round(game.stats.branching_factor, 1)))
+        if game.options.game_type != GameType.AttackerVsDefender:
+            append_to_file("** Cumulative Game Statistics **")
+            append_to_file("Cumulative evals: {b}".format(b=format_stats(game.stats.total_evals)))
+            cumulative_evals = ", ".join(f"{k}={format_stats(v)}" for k, v in game.stats.evaluations_per_depth.items())
+            append_to_file(f"Cumulative evals by depth: {cumulative_evals}")
+            percentage_evals_str = "Cumulative % evals by depth: " + ' '.join(
+                f"{depth}={count * 100 / game.stats.total_evals:.1f}%" for depth, count in
+                game.stats.evaluations_per_depth.items())
+            append_to_file("Cumulative % evals by depth: {b}".format(b=percentage_evals_str))
+            append_to_file("Average branching factor: {b}".format(b=round(game.stats.branching_factor, 1)))
         append_to_file("----------------------")
 
 
