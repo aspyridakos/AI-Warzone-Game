@@ -684,7 +684,9 @@ class Game:
             self.stats.branching_factor = len(moves)
 
         best_move = None
-        # OR best_move = random.choice(moves)
+        # best_move = random.choice(moves)
+        # Can Randomize AI choices
+        # random.shuffle(moves)
 
         if maximizing_player:
             max_score = MIN_HEURISTIC_SCORE
@@ -769,23 +771,53 @@ class Game:
                           3 * defender_counts[UnitType.Firewall] + 3 * defender_counts[UnitType.Program] +
                           9999 * defender_counts[UnitType.AI]))
 
-        #  Considering health and unit count for heuristic
+        #  Considering health, unit count, and importance of units for heuristic
         if self.options.heuristic == "e1":
             player_total_health = {player: defaultdict(float) for player in Player}
+            ai_positions = {player: None for player in Player}
 
+            # Identify AI positions for both players
             for player in Player:
                 for coord, unit in self.player_units(player):
-                    player_total_health[player][unit.type] += unit.health/9
+                    if unit.type == UnitType.AI:
+                        ai_positions[player] = coord
+
+            # Calculate total health for each unit type
+            for player in Player:
+                for coord, unit in self.player_units(player):
+                    player_total_health[player][unit.type] += unit.health / 9  # Assuming 9 is the max health
 
             attacker_weighted_counts = player_total_health[Player.Attacker]
             defender_weighted_counts = player_total_health[Player.Defender]
 
-            heuristic = ((3 * attacker_weighted_counts[UnitType.Virus] + 3 * attacker_weighted_counts[UnitType.Tech] +
-                          3 * attacker_weighted_counts[UnitType.Firewall] + 3 * attacker_weighted_counts[UnitType.Program] +
-                          9999 * attacker_weighted_counts[UnitType.AI]) -
-                         (3 * defender_weighted_counts[UnitType.Virus] + 3 * defender_weighted_counts[UnitType.Tech] +
-                          3 * defender_weighted_counts[UnitType.Firewall] + 3 * defender_weighted_counts[UnitType.Program] +
-                          9999 * defender_weighted_counts[UnitType.AI]))
+            # Define base weights for all piece types
+            base_weights = {
+                UnitType.Virus: 3,
+                UnitType.Tech: 3,
+                UnitType.Firewall: 3,
+                UnitType.Program: 3,
+                UnitType.AI: 9999
+            }
+
+            # Adjust base weights for the case of the threat of Virus to AI for the attacker
+            # if self.next_player == Player.Attacker:
+            #     for coord, unit in self.player_units(Player.Attacker):
+            #         if unit.type == UnitType.Virus and ai_positions[Player.Defender]:
+            #             distance = math.dist([coord.row, coord.col],
+            #                                  [ai_positions[Player.Defender].row, ai_positions[Player.Defender].col])
+            #             max_distance = math.sqrt(self.options.dim ** 2 + self.options.dim ** 2)
+            #             threat = max_distance - distance
+            #             base_weights[UnitType.Virus] += threat
+
+            # Calculate the final weighted count using both base weight and health weight for attacker and defender
+            attacker_final_weights = {unit_type: base_weights[unit_type] * attacker_weighted_counts[unit_type] for
+                                      unit_type in UnitType}
+            defender_final_weights = {unit_type: base_weights[unit_type] * defender_weighted_counts[unit_type] for
+                                      unit_type in UnitType}
+
+            # Calculate heuristic using the adjusted weights
+            heuristic = (sum(attacker_final_weights[unit_type] for unit_type in UnitType) -
+                         sum(defender_final_weights[unit_type] for unit_type in UnitType))
 
         #  Considering distance from enemy AI and unit count for heuristic
         if self.options.heuristic == "e2":
