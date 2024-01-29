@@ -10,3 +10,5 @@
  Play the game automatically from the command line by entering 'python main.py'. The game will play manually by default where both defender and attacker players are human. The maximum number of turns unless specified is 100.  
  
  Additional help about options is available by adding -h at the end of 'python main.py'.
+
+Refer to [Wiki](https://github.com/aspyridakos/AI-Strategy-Game/wiki/Project-Summary-Report) to access project summary report. 
