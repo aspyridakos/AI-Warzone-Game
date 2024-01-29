@@ -1,4 +1,4 @@
-# AI-Strategy-Game
+# AI-Warzone-Game
  COMP 472 Course Project
 
  <b>Team Members:</b> <br/>
